@@ -179,11 +179,11 @@ is permanent for that registry's lifetime. Not the worst leak; it doesn't
 crash. But it shows up as duplicate entries on hot-reload, and
 `LogGameSettings` Verbose logs every Add and Remove if you want to audit.
 
-DevName collisions are warnings, not crashes. The original Lyra code
-asserted on duplicate DevNames. With independent contributors, that's too
-brittle. The plugin now logs and lets both settings live in the registry;
-the right fix is to give each setting a distinct `SettingId` tag.
-`FindSettingByTag` is the lookup API.
+SettingId collisions are warnings, not crashes. The original Lyra code
+asserted on duplicate identifiers. With independent contributors that's
+too brittle, so the plugin logs the collision and lets both settings
+live in the registry. The right fix is to give each setting a distinct
+`SettingId` tag; `FindSettingByTag` is the lookup API.
 
 Settings outlive the menu. The registry sits on the LocalPlayer subsystem.
 Ask `Subsystem->GetRegistry()->FindSettingByTag(...)` from anywhere, any

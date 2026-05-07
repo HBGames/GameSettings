@@ -184,9 +184,6 @@ version:
 - Setting tags: `Settings.<Contributor>.<Group>.<Name>`
 - Plugin namespace boundary: `Settings.<YourPlugin>.*`
 
-DevName auto-derives from the tag's short name if you don't set it
-explicitly.
-
 ---
 
 ## Plugin-owned backing storage

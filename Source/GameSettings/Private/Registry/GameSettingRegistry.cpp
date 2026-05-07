@@ -148,7 +148,7 @@ FGameSettingHandle UGameSettingRegistry::AddSetting(UGameSetting* InSetting, FGa
 	if (ParentTab.IsValid() && !ParentCollection)
 	{
 		UE_LOG(LogGameSettings, Warning, TEXT("AddSetting('%s') requested parent tab '%s' but no such tab is registered; adding at top level."),
-			   InSetting->GetSettingId().IsValid() ? *InSetting->GetSettingId().ToString() : *InSetting->GetDevName().ToString(),
+			   *InSetting->GetSettingId().ToString(),
 			   *ParentTab.ToString());
 	}
 
@@ -253,20 +253,25 @@ void UGameSettingRegistry::WireSettingTree(UGameSetting* InSetting)
 	}
 
 	// Soft collision policy: warn instead of crashing in shipping. A duplicate
-	// DevName is almost always a contributor-naming bug; we want to surface it
-	// without taking the game down.
+	// SettingId is almost always a contributor-naming bug; surface it without
+	// taking the game down.
 	if (RegisteredSettings.Contains(InSetting))
 	{
-		UE_LOG(LogGameSettings, Warning, TEXT("Setting '%s' is being re-registered; skipping."), *InSetting->GetDevName().ToString());
+		UE_LOG(LogGameSettings, Warning, TEXT("Setting '%s' is being re-registered; skipping."), *InSetting->GetSettingId().ToString());
 		return;
 	}
-	if (UGameSetting* const* Existing = ObjectPtrDecay(RegisteredSettings).FindByPredicate([InSetting](UGameSetting* ExistingSetting) { return ExistingSetting && ExistingSetting->GetDevName() == InSetting->GetDevName(); }))
+	if (InSetting->GetSettingId().IsValid())
 	{
-		UE_LOG(LogGameSettings, Warning,
-			   TEXT("DevName collision: '%s' already registered (existing=%s, incoming=%s). Both will live in the registry; resolve ambiguity by giving each setting a distinct SettingId tag."),
-			   *InSetting->GetDevName().ToString(),
-			   *(*Existing)->GetClass()->GetName(),
-			   *InSetting->GetClass()->GetName());
+		const FGameplayTag IncomingId = InSetting->GetSettingId();
+		if (UGameSetting* const* Existing = ObjectPtrDecay(RegisteredSettings).FindByPredicate(
+				[IncomingId](UGameSetting* ExistingSetting) { return ExistingSetting && ExistingSetting->GetSettingId() == IncomingId; }))
+		{
+			UE_LOG(LogGameSettings, Warning,
+				   TEXT("SettingId collision: '%s' already registered (existing=%s, incoming=%s). Both will live in the registry; give each setting a distinct SettingId tag."),
+				   *IncomingId.ToString(),
+				   *(*Existing)->GetClass()->GetName(),
+				   *InSetting->GetClass()->GetName());
+		}
 	}
 
 	RegisteredSettings.Add(InSetting);

@@ -77,21 +77,6 @@ legacy spot.
 GameFeaturePlugins follow the same convention as plugins:
 `Config/Tags/<GFP>.ini`.
 
-## DevName auto-derivation
-
-`UGameSetting` keeps a `FName DevName` field for analytics, save keys,
-and the visual-data name-override map on the list view. If you set a
-tag and leave DevName unset, `Initialize` derives DevName from the
-tag's short name:
-
-```cpp
-Setting->SetSettingId(FGameplayTag::RequestGameplayTag("Settings.Audio.Volume.Master"));
-// At Initialize: DevName == "Master"
-```
-
-If you need a specific DevName (legacy analytics keys, for instance),
-set it with `SetDevName` before `Initialize` runs.
-
 ## Don'ts
 
 - Don't put a setting directly under `Settings`. Use a tab namespace.

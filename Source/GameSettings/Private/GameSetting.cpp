@@ -48,16 +48,8 @@ void UGameSetting::Initialize(ULocalPlayer* InLocalPlayer)
 	//TODO: GameSettings
 	//LocalPlayer->OnPlayerLoggedIn().AddUObject(this, &UGameSetting::RefreshEditableState, true);
 
-	// Auto-derive DevName from SettingId tag short name if a tag was supplied
-	// but DevName was not. New contributor code should set SettingId; legacy
-	// code keeps setting DevName directly.
-	if (DevName.IsNone() && SettingId.IsValid())
-	{
-		DevName = SettingId.GetTagName();
-	}
-
 #if !UE_BUILD_SHIPPING
-	ensureAlwaysMsgf(DevName != NAME_None, TEXT("You must provide a DevName or SettingId tag for the setting."));
+	ensureAlwaysMsgf(SettingId.IsValid(), TEXT("You must provide a SettingId tag for the setting."));
 	ensureAlwaysMsgf(!DisplayName.IsEmpty(), TEXT("You must provide a DisplayName for settings."));
 #endif
 
@@ -296,9 +288,9 @@ FText UGameSetting::GetDynamicDetails() const
 #if UE_CAN_SHOW_SETTINGS_DEBUG_INFO
 	if ((GameSettingsConsoleVars::ShowDebugInfoMode == 1) || ((GameSettingsConsoleVars::ShowDebugInfoMode == -1) && GIsEditor))
 	{
-		const FString DevSettingDetails = FString::Printf(TEXT("%s<debug>DevName: %s</>\n<debug>Class: %s</>"),
+		const FString DevSettingDetails = FString::Printf(TEXT("%s<debug>SettingId: %s</>\n<debug>Class: %s</>"),
 			DynamicDetailsText.IsEmpty() ? TEXT("") : TEXT("\n"),
-			*DevName.ToString(),
+			*SettingId.ToString(),
 			*GetClass()->GetName());
 
 		DynamicDetailsText = FText::Format(LOCTEXT("DevDynamicDetailsFormat", "{0}{1}"),

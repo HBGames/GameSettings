@@ -92,14 +92,14 @@ void UGameSettingValueScalarDynamic::OnDataSourcesReady()
 void UGameSettingValueScalarDynamic::OnInitialized()
 {
 #if !UE_BUILD_SHIPPING
-	ensureAlwaysMsgf(DisplayFormat, TEXT("%s: Has no DisplayFormat set.  Please call SetDisplayFormat."), *GetDevName().ToString());
+	ensureAlwaysMsgf(DisplayFormat, TEXT("%s: Has no DisplayFormat set.  Please call SetDisplayFormat."), *GetSettingId().ToString());
 #endif
 
 #if !UE_BUILD_SHIPPING
 	ensureAlways(Getter);
-	ensureAlwaysMsgf(Getter->Resolve(LocalPlayer), TEXT("%s: %s did not resolve, are all functions and properties valid, and are they UFunctions/UProperties?"), *GetDevName().ToString(), *Getter->ToString());
+	ensureAlwaysMsgf(Getter->Resolve(LocalPlayer), TEXT("%s: %s did not resolve, are all functions and properties valid, and are they UFunctions/UProperties?"), *GetSettingId().ToString(), *Getter->ToString());
 	ensureAlways(Setter);
-	ensureAlwaysMsgf(Setter->Resolve(LocalPlayer), TEXT("%s: %s did not resolve, are all functions and properties valid, and are they UFunctions/UProperties?"), *GetDevName().ToString(), *Setter->ToString());
+	ensureAlwaysMsgf(Setter->Resolve(LocalPlayer), TEXT("%s: %s did not resolve, are all functions and properties valid, and are they UFunctions/UProperties?"), *GetSettingId().ToString(), *Setter->ToString());
 #endif
 
 	Super::OnInitialized();

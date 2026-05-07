@@ -43,19 +43,10 @@ public:
 public:
 
 	/**
-	 * Gets the non-localized developer name for this setting.  This should remain constant, and represent a
-	 * unique identifier for this setting inside this settings registry.
-	 */
-	UFUNCTION(BlueprintCallable)
-	FName GetDevName() const { return DevName; }
-	void SetDevName(const FName& Value) { DevName = Value; }
-
-	/**
-	 * GameplayTag identity for this setting. Preferred over DevName for new code:
-	 * tags give hierarchical grouping (Settings.Audio.Volume.Master), free
-	 * namespace isolation between contributing plugins, and stable identity
-	 * across renames. If DevName is unset at Initialize time, it is auto-derived
-	 * from the tag's short name.
+	 * GameplayTag identity for this setting. Required: every setting must
+	 * have a unique tag before Initialize runs. Tags give hierarchical
+	 * grouping (e.g. Settings.Audio.MusicVolume), free namespace isolation
+	 * between contributing plugins, and stable identity across renames.
 	 */
 	FGameplayTag GetSettingId() const { return SettingId; }
 	void SetSettingId(const FGameplayTag& Value) { SettingId = Value; }
@@ -221,7 +212,6 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UGameSettingRegistry> OwningRegistry;
 
-	FName DevName;
 	FGameplayTag SettingId;
 	FGameSettingHandle Handle;
 	FText DisplayName;
