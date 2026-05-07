@@ -3,27 +3,9 @@
 #include "ViewModels/GameSettingDiscreteViewModel.h"
 
 #include "GameSettingValueDiscrete.h"
+#include "GameSettingViewModelUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameSettingDiscreteViewModel)
-
-namespace
-{
-	bool AreFTextArraysEqual(const TArray<FText>& A, const TArray<FText>& B)
-	{
-		if (A.Num() != B.Num())
-		{
-			return false;
-		}
-		for (int32 Index = 0; Index < A.Num(); ++Index)
-		{
-			if (!A[Index].EqualTo(B[Index]))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-}
 
 void UGameSettingDiscreteViewModel::SetSelectedIndex(int32 NewIndex)
 {
