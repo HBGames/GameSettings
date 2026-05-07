@@ -1,0 +1,332 @@
+// Copyright Hitbox Games, LLC. All Rights Reserved.
+
+#include "ViewModels/GameSettingsScreenViewModel.h"
+
+#include "GameSetting.h"
+#include "GameSettingAction.h"
+#include "GameSettingCollection.h"
+#include "GameSettingRegistry.h"
+#include "GameSettingValueDiscrete.h"
+#include "GameSettingValueScalar.h"
+#include "GameSettingsSubsystem.h"
+#include "ViewModels/GameSettingActionViewModel.h"
+#include "ViewModels/GameSettingCollectionViewModel.h"
+#include "ViewModels/GameSettingDiscreteViewModel.h"
+#include "ViewModels/GameSettingScalarViewModel.h"
+#include "ViewModels/GameSettingViewModel.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GameSettingsScreenViewModel)
+
+void UGameSettingsScreenViewModel::Initialize(UGameSettingsSubsystem* InSettingsSubsystem)
+{
+	SettingsSubsystem = InSettingsSubsystem;
+	if (!SettingsSubsystem)
+	{
+		return;
+	}
+
+	UGameSettingRegistry* Registry = SettingsSubsystem->GetOrCreateRegistry();
+	if (!Registry)
+	{
+		return;
+	}
+
+	ChangeTracker.WatchRegistry(Registry);
+
+	// Subscribe to registry events for our own purposes (separate from the tracker).
+	Registry->OnStructureChangedEvent.AddUObject(this, &UGameSettingsScreenViewModel::HandleStructureChanged);
+	Registry->OnSettingChangedEvent.AddUObject(this, &UGameSettingsScreenViewModel::HandleSettingChanged);
+
+	RebuildTabs();
+	RebuildVisibleSettings();
+}
+
+void UGameSettingsScreenViewModel::Shutdown()
+{
+	ChangeTracker.StopWatchingRegistry();
+
+	if (SettingsSubsystem)
+	{
+		if (UGameSettingRegistry* Registry = SettingsSubsystem->GetRegistry())
+		{
+			Registry->OnStructureChangedEvent.RemoveAll(this);
+			Registry->OnSettingChangedEvent.RemoveAll(this);
+		}
+	}
+}
+
+void UGameSettingsScreenViewModel::BeginDestroy()
+{
+	Shutdown();
+	Super::BeginDestroy();
+}
+
+void UGameSettingsScreenViewModel::SetCurrentTab(UGameSettingViewModel* InTab)
+{
+	if (CurrentTab == InTab)
+	{
+		return;
+	}
+	CurrentTab = InTab;
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetCurrentTab);
+
+	// Clear the navigation stack and reset to a tab-rooted filter.
+	FilterNavigationStack.Reset();
+	FilterState = FGameSettingFilterState();
+	if (CurrentTab)
+	{
+		if (UGameSetting* Setting = CurrentTab->GetSetting())
+		{
+			FilterState.AddSettingToRootList(Setting);
+		}
+	}
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(CanPopNavigation);
+
+	RebuildVisibleSettings();
+}
+
+void UGameSettingsScreenViewModel::SetFocusedSetting(UGameSettingViewModel* InVM)
+{
+	if (FocusedSetting == InVM)
+	{
+		return;
+	}
+	FocusedSetting = InVM;
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetFocusedSetting);
+}
+
+void UGameSettingsScreenViewModel::Apply()
+{
+	if (!ChangeTracker.HaveSettingsBeenChanged())
+	{
+		return;
+	}
+
+	ChangeTracker.ApplyChanges();
+	if (SettingsSubsystem)
+	{
+		if (UGameSettingRegistry* Registry = SettingsSubsystem->GetRegistry())
+		{
+			Registry->SaveChanges();
+		}
+	}
+	ChangeTracker.ClearDirtyState();
+	RefreshDirtyState();
+}
+
+void UGameSettingsScreenViewModel::Cancel()
+{
+	ChangeTracker.RestoreToInitial();
+	RefreshDirtyState();
+}
+
+void UGameSettingsScreenViewModel::NavigateToTabByTag(FGameplayTag TabId)
+{
+	if (!TabId.IsValid())
+	{
+		return;
+	}
+	for (UGameSettingViewModel* Tab : Tabs)
+	{
+		if (Tab && Tab->GetSetting() && Tab->GetSetting()->GetSettingId() == TabId)
+		{
+			SetCurrentTab(Tab);
+			return;
+		}
+	}
+}
+
+void UGameSettingsScreenViewModel::NavigateToSettingByTag(FGameplayTag SettingId)
+{
+	if (!SettingsSubsystem || !SettingId.IsValid())
+	{
+		return;
+	}
+	UGameSettingRegistry* Registry = SettingsSubsystem->GetRegistry();
+	if (!Registry)
+	{
+		return;
+	}
+	UGameSetting* Setting = Registry->FindSettingByTag(SettingId);
+	if (!Setting)
+	{
+		return;
+	}
+
+	FilterNavigationStack.Push(FilterState);
+	FilterState = FGameSettingFilterState();
+	FilterState.AddSettingToRootList(Setting);
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(CanPopNavigation);
+
+	RebuildVisibleSettings();
+}
+
+void UGameSettingsScreenViewModel::PopNavigation()
+{
+	if (FilterNavigationStack.Num() == 0)
+	{
+		return;
+	}
+	FilterState = FilterNavigationStack.Pop();
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(CanPopNavigation);
+
+	RebuildVisibleSettings();
+}
+
+void UGameSettingsScreenViewModel::RebuildTabs()
+{
+	Tabs.Reset();
+
+	if (!SettingsSubsystem)
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetTabs);
+		return;
+	}
+	UGameSettingRegistry* Registry = SettingsSubsystem->GetRegistry();
+	if (!Registry)
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetTabs);
+		return;
+	}
+
+	// TopLevelSettings is the source of truth for tabs.
+	FGameSettingFilterState EmptyFilter;
+	TArray<UGameSetting*> RootSettings;
+	Registry->GetSettingsForFilter(EmptyFilter, RootSettings);
+	// GetSettingsForFilter walks into collections; we want the top-level
+	// containers themselves. The registry's direct top-level array is
+	// protected, so walk what GetSettingsForFilter returns and dedupe up
+	// to the parent collection chain.
+	TSet<UGameSetting*> SeenTabs;
+	for (UGameSetting* Setting : RootSettings)
+	{
+		if (!Setting)
+		{
+			continue;
+		}
+		// Find the top-level ancestor.
+		UGameSetting* Ancestor = Setting;
+		while (UGameSetting* Parent = Ancestor->GetSettingParent())
+		{
+			Ancestor = Parent;
+		}
+		if (UGameSettingCollection* Tab = Cast<UGameSettingCollection>(Ancestor))
+		{
+			if (!SeenTabs.Contains(Tab))
+			{
+				SeenTabs.Add(Tab);
+				if (UGameSettingViewModel* VM = GetOrCreateViewModelFor(Tab))
+				{
+					Tabs.Add(VM);
+				}
+			}
+		}
+	}
+
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetTabs);
+
+	// Default focus the first tab if nothing's selected.
+	if (!CurrentTab && Tabs.Num() > 0)
+	{
+		SetCurrentTab(Tabs[0]);
+	}
+}
+
+void UGameSettingsScreenViewModel::RebuildVisibleSettings()
+{
+	VisibleSettings.Reset();
+
+	if (!SettingsSubsystem)
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetVisibleSettings);
+		return;
+	}
+	UGameSettingRegistry* Registry = SettingsSubsystem->GetRegistry();
+	if (!Registry)
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetVisibleSettings);
+		return;
+	}
+
+	TArray<UGameSetting*> Flat;
+	Registry->GetSettingsForFilter(FilterState, Flat);
+
+	VisibleSettings.Reserve(Flat.Num());
+	for (UGameSetting* Setting : Flat)
+	{
+		if (UGameSettingViewModel* VM = GetOrCreateViewModelFor(Setting))
+		{
+			VisibleSettings.Add(VM);
+		}
+	}
+
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetVisibleSettings);
+}
+
+void UGameSettingsScreenViewModel::RefreshDirtyState()
+{
+	const bool bNewDirty = ChangeTracker.HaveSettingsBeenChanged();
+	if (bIsDirty != bNewDirty)
+	{
+		bIsDirty = bNewDirty;
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(IsDirty);
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(CanApply);
+	}
+}
+
+UGameSettingViewModel* UGameSettingsScreenViewModel::GetOrCreateViewModelFor(UGameSetting* Setting)
+{
+	if (!Setting)
+	{
+		return nullptr;
+	}
+
+	for (const TObjectPtr<UGameSettingViewModel>& Existing : AllViewModels)
+	{
+		if (Existing && Existing->GetSetting() == Setting)
+		{
+			return Existing.Get();
+		}
+	}
+
+	TSubclassOf<UGameSettingViewModel> VMClass = ResolveViewModelClass(Setting);
+	if (!VMClass)
+	{
+		return nullptr;
+	}
+
+	UGameSettingViewModel* VM = NewObject<UGameSettingViewModel>(this, VMClass);
+	VM->SetSetting(Setting);
+	AllViewModels.Add(VM);
+	return VM;
+}
+
+TSubclassOf<UGameSettingViewModel> UGameSettingsScreenViewModel::ResolveViewModelClass(UGameSetting* Setting) const
+{
+	// Default mapping. Project subclasses can override per setting class.
+	if (Cast<UGameSettingValueScalar>(Setting))      return UGameSettingScalarViewModel::StaticClass();
+	if (Cast<UGameSettingValueDiscrete>(Setting))    return UGameSettingDiscreteViewModel::StaticClass();
+	if (Cast<UGameSettingAction>(Setting))           return UGameSettingActionViewModel::StaticClass();
+	if (Cast<UGameSettingCollection>(Setting))       return UGameSettingCollectionViewModel::StaticClass();
+	return UGameSettingViewModel::StaticClass();
+}
+
+void UGameSettingsScreenViewModel::HandleStructureChanged(UGameSettingRegistry* Registry)
+{
+	// Evict VMs whose underlying setting is gone (the setting goes null
+	// because TObjectPtr clears garbage refs after MarkAsGarbage).
+	AllViewModels.RemoveAll(
+		[](const TObjectPtr<UGameSettingViewModel>& VM)
+		{
+			return !VM || !VM->GetSetting();
+		});
+
+	RebuildTabs();
+	RebuildVisibleSettings();
+}
+
+void UGameSettingsScreenViewModel::HandleSettingChanged(UGameSetting* /*Setting*/, EGameSettingChangeReason /*Reason*/)
+{
+	// Tracker has already updated; re-broadcast our IsDirty if it flipped.
+	RefreshDirtyState();
+}
