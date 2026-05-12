@@ -94,7 +94,7 @@ void UGameSettingRegistry::GetSettingsForFilter(const FGameSettingFilterState& F
 	}
 }
 
-UGameSetting* UGameSettingRegistry::FindSettingByTag(const FGameplayTag& Id) const
+UGameSetting* UGameSettingRegistry::FindSettingById(const FPrimaryAssetId& Id) const
 {
 	if (!Id.IsValid())
 	{
@@ -132,7 +132,7 @@ FGameSettingHandle UGameSettingRegistry::AddTab(UGameSettingCollection* InTab)
 	return NewHandle;
 }
 
-FGameSettingHandle UGameSettingRegistry::AddSetting(UGameSetting* InSetting, FGameplayTag ParentTab)
+FGameSettingHandle UGameSettingRegistry::AddSetting(UGameSetting* InSetting, FPrimaryAssetId ParentTab)
 {
 	if (!InSetting)
 	{
@@ -144,7 +144,7 @@ FGameSettingHandle UGameSettingRegistry::AddSetting(UGameSetting* InSetting, FGa
 	InSetting->SetHandle(NewHandle);
 
 	// Resolve parent tab if specified; fall back to top-level on miss.
-	UGameSettingCollection* ParentCollection = ParentTab.IsValid() ? FindTabByTag(ParentTab) : nullptr;
+	UGameSettingCollection* ParentCollection = ParentTab.IsValid() ? FindTabById(ParentTab) : nullptr;
 	if (ParentTab.IsValid() && !ParentCollection)
 	{
 		UE_LOG(LogGameSettings, Warning, TEXT("AddSetting('%s') requested parent tab '%s' but no such tab is registered; adding at top level."),
@@ -196,9 +196,9 @@ bool UGameSettingRegistry::RemoveByHandle(const FGameSettingHandle& Handle)
 	return true;
 }
 
-bool UGameSettingRegistry::RemoveByTag(const FGameplayTag& Id)
+bool UGameSettingRegistry::RemoveById(const FPrimaryAssetId& Id)
 {
-	UGameSetting* Setting = FindSettingByTag(Id);
+	UGameSetting* Setting = FindSettingById(Id);
 	return Setting ? RemoveByHandle(Setting->GetHandle()) : false;
 }
 
@@ -212,7 +212,7 @@ UGameSetting* UGameSettingRegistry::FindSettingByHandle(const FGameSettingHandle
 	return Found ? Found->Get() : nullptr;
 }
 
-UGameSettingCollection* UGameSettingRegistry::FindTabByTag(const FGameplayTag& TabId) const
+UGameSettingCollection* UGameSettingRegistry::FindTabById(const FPrimaryAssetId& TabId) const
 {
 	for (UGameSetting* TopLevel : TopLevelSettings)
 	{
@@ -262,12 +262,12 @@ void UGameSettingRegistry::WireSettingTree(UGameSetting* InSetting)
 	}
 	if (InSetting->GetSettingId().IsValid())
 	{
-		const FGameplayTag IncomingId = InSetting->GetSettingId();
+		const FPrimaryAssetId IncomingId = InSetting->GetSettingId();
 		if (UGameSetting* const* Existing = ObjectPtrDecay(RegisteredSettings).FindByPredicate(
 				[IncomingId](UGameSetting* ExistingSetting) { return ExistingSetting && ExistingSetting->GetSettingId() == IncomingId; }))
 		{
 			UE_LOG(LogGameSettings, Warning,
-				   TEXT("SettingId collision: '%s' already registered (existing=%s, incoming=%s). Both will live in the registry; give each setting a distinct SettingId tag."),
+				   TEXT("SettingId collision: '%s' already registered (existing=%s, incoming=%s). Both will live in the registry; give each setting a distinct contribution asset."),
 				   *IncomingId.ToString(),
 				   *(*Existing)->GetClass()->GetName(),
 				   *InSetting->GetClass()->GetName());

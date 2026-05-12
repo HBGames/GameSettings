@@ -13,9 +13,16 @@
 
 #define LOCTEXT_NAMESPACE "GameSettings"
 
+const FPrimaryAssetType UGameSettingsContribution_Tab::ContributionPrimaryAssetType = FPrimaryAssetType(TEXT("GameSettingsTab"));
+
+FPrimaryAssetType UGameSettingsContribution_Tab::GetContributionPrimaryAssetType() const
+{
+	return ContributionPrimaryAssetType;
+}
+
 void UGameSettingsContribution_Tab::Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles)
 {
-	if (!SettingId.IsValid() || DisplayName.IsEmpty())
+	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty())
 	{
 		return;
 	}
@@ -33,20 +40,8 @@ void UGameSettingsContribution_Tab::Apply(UGameSettingRegistry& Registry, TArray
 #if WITH_EDITOR
 EDataValidationResult UGameSettingsContribution_Tab::IsDataValid(FDataValidationContext& Context) const
 {
-	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
-
-	if (!SettingId.IsValid())
-	{
-		Context.AddError(LOCTEXT("Tab_NoTag", "Tab contribution: SettingId tag is required."));
-		Result = EDataValidationResult::Invalid;
-	}
-	if (DisplayName.IsEmpty())
-	{
-		Context.AddError(LOCTEXT("Tab_NoName", "Tab contribution: DisplayName is required."));
-		Result = EDataValidationResult::Invalid;
-	}
-
-	return Result;
+	// Base class checks identity + DisplayName; nothing tab-specific to add.
+	return Super::IsDataValid(Context);
 }
 #endif
 

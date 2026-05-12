@@ -13,9 +13,16 @@
 
 #define LOCTEXT_NAMESPACE "GameSettings"
 
+const FPrimaryAssetType UGameSettingsContribution_Toggle::ContributionPrimaryAssetType = FPrimaryAssetType(TEXT("GameSettingsToggle"));
+
+FPrimaryAssetType UGameSettingsContribution_Toggle::GetContributionPrimaryAssetType() const
+{
+	return ContributionPrimaryAssetType;
+}
+
 void UGameSettingsContribution_Toggle::Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles)
 {
-	if (!SettingId.IsValid() || DisplayName.IsEmpty() || !Binding.IsValid())
+	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty() || !Binding.IsValid())
 	{
 		return;
 	}
@@ -45,18 +52,9 @@ EDataValidationResult UGameSettingsContribution_Toggle::IsDataValid(FDataValidat
 {
 	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
-	if (!SettingId.IsValid())
-	{
-		Context.AddError(LOCTEXT("Toggle_NoTag", "Toggle contribution: SettingId tag is required."));
-		Result = EDataValidationResult::Invalid;
-	}
-	if (DisplayName.IsEmpty())
-	{
-		Context.AddError(LOCTEXT("Toggle_NoName", "Toggle contribution: DisplayName is required."));
-		Result = EDataValidationResult::Invalid;
-	}
 	Result = CombineDataValidationResults(Result,
-		Binding.Validate(Context, FString::Printf(TEXT("Toggle '%s'"), *SettingId.ToString())));
+		Binding.Validate(Context, FString::Printf(TEXT("Toggle '%s'"), *GetPrimaryAssetId().ToString()),
+			EGameSettingsBindingValueType::Boolean));
 
 	return Result;
 }

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Contributions/GameSettingsBinding.h"
-#include "Contributions/GameSettingsTypedContribution.h"
+#include "Contributions/GameSettingsRowContribution.h"
 
 #include "GameSettingsContribution_Scalar.generated.h"
 
@@ -38,13 +38,10 @@ enum class EGameSettingsScalarFormat : uint8
  * resolver handles the conversion).
  */
 UCLASS(MinimalAPI, DisplayName = "Game Setting Scalar")
-class UGameSettingsContribution_Scalar : public UGameSettingsTypedContribution
+class UGameSettingsContribution_Scalar : public UGameSettingsRowContribution
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, Category = "Identity")
-	FGameplayTag ParentTab;
-
 	UPROPERTY(EditAnywhere, Category = "Value")
 	double DefaultValue = 0.0;
 
@@ -56,18 +53,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Value")
 	double SourceStep = 0.01;
 
-	/** Optional clamp tighter than SourceRange.X. */
+	/** Optional clamp tighter than SourceRange.X. Unset means no extra low clamp. */
 	UPROPERTY(EditAnywhere, Category = "Value")
-	bool bUseMinimumLimit = false;
+	TOptional<double> MinimumLimit;
 
-	UPROPERTY(EditAnywhere, Category = "Value", meta = (EditCondition = "bUseMinimumLimit"))
-	double MinimumLimit = 0.0;
-
+	/** Optional clamp tighter than SourceRange.Y. Unset means no extra high clamp. */
 	UPROPERTY(EditAnywhere, Category = "Value")
-	bool bUseMaximumLimit = false;
-
-	UPROPERTY(EditAnywhere, Category = "Value", meta = (EditCondition = "bUseMaximumLimit"))
-	double MaximumLimit = 1.0;
+	TOptional<double> MaximumLimit;
 
 	/** How the current value is formatted into the on-screen text. */
 	UPROPERTY(EditAnywhere, Category = "Display")
@@ -78,9 +70,13 @@ public:
 
 	UE_API virtual void Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles) override;
 
+	UE_API virtual FPrimaryAssetType GetContributionPrimaryAssetType() const override;
+
 #if WITH_EDITOR
 	UE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	static UE_API const FPrimaryAssetType ContributionPrimaryAssetType;
 };
 
 #undef UE_API

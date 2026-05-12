@@ -31,7 +31,14 @@ class UGameFeatureAction_RegisterGameSettings : public UGameFeatureAction
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, Instanced, Category = "Settings")
+	/**
+	 * Advanced cherry-picking list. Most settings are auto-discovered
+	 * from any UGameSettingsContribution DataAsset under a mounted
+	 * content path; only use this array when you need explicit ordering
+	 * or want to register a contribution that lives outside the GFP's
+	 * own content folder.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	TArray<TObjectPtr<UGameSettingsContribution>> Contributions;
 
 	UE_API virtual void OnGameFeatureActivating(FGameFeatureActivatingContext& Context) override;

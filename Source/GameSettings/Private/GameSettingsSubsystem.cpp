@@ -2,8 +2,10 @@
 
 #include "GameSettingsSubsystem.h"
 
+#include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "GameSettingRegistry.h"
+#include "GameSettingsAssetDiscoverySubsystem.h"
 #include "GameSettingsAutoContributor.h"
 #include "GameSettingsContribution.h"
 #include "GameSettingsDeveloperSettings.h"
@@ -16,10 +18,22 @@ void UGameSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-	// Subscribe to discovery of new auto-contributors (e.g. a plugin
-	// loading later) so they apply to this subsystem too.
 	OnAutoContributorDiscoveredHandle = FGameSettingsModule::Get().OnAutoContributorDiscovered.AddUObject(
 		this, &UGameSettingsSubsystem::ApplySingleAutoContributor);
+
+	if (const ULocalPlayer* LP = GetLocalPlayer())
+	{
+		if (UGameInstance* GameInstance = LP->GetGameInstance())
+		{
+			if (UGameSettingsAssetDiscoverySubsystem* Disco = GameInstance->GetSubsystem<UGameSettingsAssetDiscoverySubsystem>())
+			{
+				OnAssetContributionReadyHandle = Disco->OnContributionAssetReady.AddUObject(
+					this, &UGameSettingsSubsystem::ApplyAssetContribution);
+				OnAssetContributionRemovedHandle = Disco->OnContributionAssetRemoved.AddUObject(
+					this, &UGameSettingsSubsystem::RemoveAssetContribution);
+			}
+		}
+	}
 }
 
 void UGameSettingsSubsystem::Deinitialize()
@@ -33,8 +47,28 @@ void UGameSettingsSubsystem::Deinitialize()
 		OnAutoContributorDiscoveredHandle.Reset();
 	}
 
-	RemoveAllAutoContributorHandles();
-	AppliedAutoContributions.Empty();
+	if (const ULocalPlayer* LP = GetLocalPlayer())
+	{
+		if (UGameInstance* GameInstance = LP->GetGameInstance())
+		{
+			if (UGameSettingsAssetDiscoverySubsystem* Disco = GameInstance->GetSubsystem<UGameSettingsAssetDiscoverySubsystem>())
+			{
+				if (OnAssetContributionReadyHandle.IsValid())
+				{
+					Disco->OnContributionAssetReady.Remove(OnAssetContributionReadyHandle);
+				}
+				if (OnAssetContributionRemovedHandle.IsValid())
+				{
+					Disco->OnContributionAssetRemoved.Remove(OnAssetContributionRemovedHandle);
+				}
+			}
+		}
+	}
+	OnAssetContributionReadyHandle.Reset();
+	OnAssetContributionRemovedHandle.Reset();
+
+	RemoveAllAppliedContributionHandles();
+	AppliedContributions.Empty();
 
 	// GC handles cleanup; null the ref so any stale weak-pointer holders see it.
 	Registry = nullptr;
@@ -70,7 +104,7 @@ UGameSettingRegistry* UGameSettingsSubsystem::GetOrCreateRegistry()
 	Registry = NewObject<UGameSettingRegistry>(this, RegistryClass);
 	Registry->Initialize(GetLocalPlayer());
 
-	ApplyAllKnownAutoContributors();
+	ApplyAllKnownContributions();
 
 	return Registry;
 }
@@ -100,7 +134,7 @@ void UGameSettingsSubsystem::SetRegistry(UGameSettingRegistry* InRegistry)
 		*Registry->GetName(),
 		LP ? *LP->GetName() : TEXT("(null)"));
 
-	ApplyAllKnownAutoContributors();
+	ApplyAllKnownContributions();
 }
 
 void UGameSettingsSubsystem::ApplyContribution(UGameSettingsContribution* Contribution, TArray<FGameSettingHandle>& OutHandles)
@@ -119,7 +153,7 @@ void UGameSettingsSubsystem::ApplyContribution(UGameSettingsContribution* Contri
 	Contribution->Apply(*Reg, OutHandles);
 }
 
-void UGameSettingsSubsystem::ApplyAllKnownAutoContributors()
+void UGameSettingsSubsystem::ApplyAllKnownContributions()
 {
 	if (!Registry)
 	{
@@ -129,6 +163,20 @@ void UGameSettingsSubsystem::ApplyAllKnownAutoContributors()
 	for (UGameSettingsAutoContributor* Contributor : FGameSettingsModule::Get().GetAutoContributors())
 	{
 		ApplySingleAutoContributor(Contributor);
+	}
+
+	if (const ULocalPlayer* LP = GetLocalPlayer())
+	{
+		if (UGameInstance* GameInstance = LP->GetGameInstance())
+		{
+			if (UGameSettingsAssetDiscoverySubsystem* Disco = GameInstance->GetSubsystem<UGameSettingsAssetDiscoverySubsystem>())
+			{
+				for (UGameSettingsContribution* Contribution : Disco->GetKnownContributions())
+				{
+					ApplyAssetContribution(Contribution);
+				}
+			}
+		}
 	}
 }
 
@@ -143,16 +191,15 @@ void UGameSettingsSubsystem::ApplySingleAutoContributor(UGameSettingsAutoContrib
 		return;
 	}
 
-	// Skip if already applied (e.g. discovered twice during a sweep).
-	const bool bAlreadyApplied = AppliedAutoContributions.ContainsByPredicate(
-		[Contributor](const FAppliedAutoContribution& Entry) { return Entry.Contributor.Get() == Contributor; });
+	const bool bAlreadyApplied = AppliedContributions.ContainsByPredicate(
+		[Contributor](const FAppliedContribution& Entry) { return Entry.Contribution.Get() == Contributor; });
 	if (bAlreadyApplied)
 	{
 		return;
 	}
 
-	FAppliedAutoContribution Entry;
-	Entry.Contributor = Contributor;
+	FAppliedContribution Entry;
+	Entry.Contribution = Contributor;
 	Contributor->Apply(*Registry, Entry.Handles);
 
 	if (Entry.Handles.Num() > 0)
@@ -163,17 +210,72 @@ void UGameSettingsSubsystem::ApplySingleAutoContributor(UGameSettingsAutoContrib
 			GetLocalPlayer() ? *GetLocalPlayer()->GetName() : TEXT("(null)"));
 	}
 
-	AppliedAutoContributions.Add(MoveTemp(Entry));
+	AppliedContributions.Add(MoveTemp(Entry));
 }
 
-void UGameSettingsSubsystem::RemoveAllAutoContributorHandles()
+void UGameSettingsSubsystem::ApplyAssetContribution(UGameSettingsContribution* Contribution)
+{
+	if (!Contribution || !Registry)
+	{
+		return;
+	}
+	if (!Contribution->bEnabled)
+	{
+		return;
+	}
+
+	const bool bAlreadyApplied = AppliedContributions.ContainsByPredicate(
+		[Contribution](const FAppliedContribution& Entry) { return Entry.Contribution.Get() == Contribution; });
+	if (bAlreadyApplied)
+	{
+		return;
+	}
+
+	FAppliedContribution Entry;
+	Entry.Contribution = Contribution;
+	Contribution->Apply(*Registry, Entry.Handles);
+
+	if (Entry.Handles.Num() > 0)
+	{
+		UE_LOG(LogGameSettings, Verbose, TEXT("Asset contribution %s added %d setting(s) to LocalPlayer %s"),
+			*Contribution->GetName(),
+			Entry.Handles.Num(),
+			GetLocalPlayer() ? *GetLocalPlayer()->GetName() : TEXT("(null)"));
+	}
+
+	AppliedContributions.Add(MoveTemp(Entry));
+}
+
+void UGameSettingsSubsystem::RemoveAssetContribution(UGameSettingsContribution* Contribution)
+{
+	if (!Contribution || !Registry)
+	{
+		return;
+	}
+
+	for (int32 Index = AppliedContributions.Num() - 1; Index >= 0; --Index)
+	{
+		const FAppliedContribution& Entry = AppliedContributions[Index];
+		if (Entry.Contribution.Get() != Contribution)
+		{
+			continue;
+		}
+		for (const FGameSettingHandle& Handle : Entry.Handles)
+		{
+			Registry->RemoveByHandle(Handle);
+		}
+		AppliedContributions.RemoveAt(Index);
+	}
+}
+
+void UGameSettingsSubsystem::RemoveAllAppliedContributionHandles()
 {
 	if (!Registry)
 	{
 		return;
 	}
 
-	for (const FAppliedAutoContribution& Entry : AppliedAutoContributions)
+	for (const FAppliedContribution& Entry : AppliedContributions)
 	{
 		for (const FGameSettingHandle& Handle : Entry.Handles)
 		{

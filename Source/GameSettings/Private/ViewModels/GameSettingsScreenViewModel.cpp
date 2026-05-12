@@ -120,7 +120,7 @@ void UGameSettingsScreenViewModel::Cancel()
 	RefreshDirtyState();
 }
 
-void UGameSettingsScreenViewModel::NavigateToTabByTag(FGameplayTag TabId)
+void UGameSettingsScreenViewModel::NavigateToTabById(FPrimaryAssetId TabId)
 {
 	if (!TabId.IsValid())
 	{
@@ -136,7 +136,7 @@ void UGameSettingsScreenViewModel::NavigateToTabByTag(FGameplayTag TabId)
 	}
 }
 
-void UGameSettingsScreenViewModel::NavigateToSettingByTag(FGameplayTag SettingId)
+void UGameSettingsScreenViewModel::NavigateToSettingById(FPrimaryAssetId SettingId)
 {
 	if (!SettingsSubsystem || !SettingId.IsValid())
 	{
@@ -147,7 +147,7 @@ void UGameSettingsScreenViewModel::NavigateToSettingByTag(FGameplayTag SettingId
 	{
 		return;
 	}
-	UGameSetting* Setting = Registry->FindSettingByTag(SettingId);
+	UGameSetting* Setting = Registry->FindSettingById(SettingId);
 	if (!Setting)
 	{
 		return;

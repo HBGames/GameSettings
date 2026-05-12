@@ -20,9 +20,14 @@ class UGameSettingsContribution_Tab : public UGameSettingsTypedContribution
 public:
 	UE_API virtual void Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles) override;
 
+	UE_API virtual FPrimaryAssetType GetContributionPrimaryAssetType() const override;
+
 #if WITH_EDITOR
 	UE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	/** "GameSettingsTab" - used as the AllowedTypes filter on ParentTab pickers. */
+	static UE_API const FPrimaryAssetType ContributionPrimaryAssetType;
 };
 
 #undef UE_API

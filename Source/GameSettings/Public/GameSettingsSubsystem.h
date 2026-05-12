@@ -27,8 +27,9 @@ class UGameSettingsContribution;
  *      to plain UGameSettingRegistry).
  *   2. SetRegistry(). Hand the subsystem a registry built externally
  *      (e.g. by a project widget that constructs its own subclass).
- *   3. Auto-contributors. Every UGameSettingsAutoContributor CDO gets
- *      applied to the registry once it exists.
+ *   3. Auto-discovered sources. Every UGameSettingsAutoContributor CDO
+ *      and every UGameSettingsContribution DataAsset is applied as it
+ *      becomes available.
  *   4. UGameFeatureAction_RegisterGameSettings. GFPs push contributions
  *      via ApplyContribution() on activation.
  */
@@ -40,7 +41,7 @@ public:
 	UE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	UE_API virtual void Deinitialize() override;
 
-	/** The registry. Builds and applies auto-contributors on first call. */
+	/** The registry. Builds and applies known contributions on first call. */
 	UE_API UGameSettingRegistry* GetOrCreateRegistry();
 
 	/** The registry, or nullptr if one has not been provided yet. */
@@ -55,7 +56,7 @@ public:
 	 * transient settings widget). Asserts if a registry is already set;
 	 * call Regenerate() on the existing one instead of swapping.
 	 *
-	 * Runs an auto-contributor sweep right after assignment.
+	 * Runs an auto-discovered-contributions sweep right after assignment.
 	 */
 	UE_API void SetRegistry(UGameSettingRegistry* InRegistry);
 
@@ -67,23 +68,27 @@ public:
 	UE_API void ApplyContribution(UGameSettingsContribution* Contribution, TArray<FGameSettingHandle>& OutHandles);
 
 private:
-	/** Auto-contributors applied to this subsystem and the handles they produced. */
-	struct FAppliedAutoContribution
+	/** Auto-applied contributions and the handles they produced. */
+	struct FAppliedContribution
 	{
-		TWeakObjectPtr<UGameSettingsAutoContributor> Contributor;
+		TWeakObjectPtr<UGameSettingsContribution> Contribution;
 		TArray<FGameSettingHandle> Handles;
 	};
 
-	UE_API void ApplyAllKnownAutoContributors();
+	UE_API void ApplyAllKnownContributions();
 	UE_API void ApplySingleAutoContributor(UGameSettingsAutoContributor* Contributor);
-	UE_API void RemoveAllAutoContributorHandles();
+	UE_API void ApplyAssetContribution(UGameSettingsContribution* Contribution);
+	UE_API void RemoveAssetContribution(UGameSettingsContribution* Contribution);
+	UE_API void RemoveAllAppliedContributionHandles();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UGameSettingRegistry> Registry;
 
-	TArray<FAppliedAutoContribution> AppliedAutoContributions;
+	TArray<FAppliedContribution> AppliedContributions;
 
 	FDelegateHandle OnAutoContributorDiscoveredHandle;
+	FDelegateHandle OnAssetContributionReadyHandle;
+	FDelegateHandle OnAssetContributionRemovedHandle;
 };
 
 #undef UE_API

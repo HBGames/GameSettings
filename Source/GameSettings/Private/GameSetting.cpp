@@ -49,7 +49,7 @@ void UGameSetting::Initialize(ULocalPlayer* InLocalPlayer)
 	//LocalPlayer->OnPlayerLoggedIn().AddUObject(this, &UGameSetting::RefreshEditableState, true);
 
 #if !UE_BUILD_SHIPPING
-	ensureAlwaysMsgf(SettingId.IsValid(), TEXT("You must provide a SettingId tag for the setting."));
+	ensureAlwaysMsgf(SettingId.IsValid(), TEXT("You must provide a SettingId (FPrimaryAssetId) for the setting."));
 	ensureAlwaysMsgf(!DisplayName.IsEmpty(), TEXT("You must provide a DisplayName for settings."));
 #endif
 

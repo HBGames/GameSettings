@@ -13,6 +13,13 @@
 
 #define LOCTEXT_NAMESPACE "GameSettings"
 
+const FPrimaryAssetType UGameSettingsContribution_Scalar::ContributionPrimaryAssetType = FPrimaryAssetType(TEXT("GameSettingsScalar"));
+
+FPrimaryAssetType UGameSettingsContribution_Scalar::GetContributionPrimaryAssetType() const
+{
+	return ContributionPrimaryAssetType;
+}
+
 namespace
 {
 	const FSettingScalarFormatFunction& ResolveFormat(EGameSettingsScalarFormat Format)
@@ -34,7 +41,7 @@ namespace
 
 void UGameSettingsContribution_Scalar::Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles)
 {
-	if (!SettingId.IsValid() || DisplayName.IsEmpty() || !Binding.IsValid())
+	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty() || !Binding.IsValid())
 	{
 		return;
 	}
@@ -52,8 +59,8 @@ void UGameSettingsContribution_Scalar::Apply(UGameSettingRegistry& Registry, TAr
 	}
 	Setting->SetDefaultValue(DefaultValue);
 	Setting->SetSourceRangeAndStep(TRange<double>(SourceRange.X, SourceRange.Y), SourceStep);
-	if (bUseMinimumLimit) Setting->SetMinimumLimit(MinimumLimit);
-	if (bUseMaximumLimit) Setting->SetMaximumLimit(MaximumLimit);
+	if (MinimumLimit.IsSet()) Setting->SetMinimumLimit(MinimumLimit.GetValue());
+	if (MaximumLimit.IsSet()) Setting->SetMaximumLimit(MaximumLimit.GetValue());
 	Setting->SetDisplayFormat(ResolveFormat(DisplayFormat));
 
 	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentTab);
@@ -68,16 +75,6 @@ EDataValidationResult UGameSettingsContribution_Scalar::IsDataValid(FDataValidat
 {
 	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
-	if (!SettingId.IsValid())
-	{
-		Context.AddError(LOCTEXT("Scalar_NoTag", "Scalar contribution: SettingId tag is required."));
-		Result = EDataValidationResult::Invalid;
-	}
-	if (DisplayName.IsEmpty())
-	{
-		Context.AddError(LOCTEXT("Scalar_NoName", "Scalar contribution: DisplayName is required."));
-		Result = EDataValidationResult::Invalid;
-	}
 	if (SourceRange.X >= SourceRange.Y)
 	{
 		Context.AddError(LOCTEXT("Scalar_BadRange", "Scalar contribution: SourceRange.X must be less than SourceRange.Y."));
@@ -89,7 +86,8 @@ EDataValidationResult UGameSettingsContribution_Scalar::IsDataValid(FDataValidat
 		Result = EDataValidationResult::Invalid;
 	}
 	Result = CombineDataValidationResults(Result,
-		Binding.Validate(Context, FString::Printf(TEXT("Scalar '%s'"), *SettingId.ToString())));
+		Binding.Validate(Context, FString::Printf(TEXT("Scalar '%s'"), *GetPrimaryAssetId().ToString()),
+			EGameSettingsBindingValueType::Numeric));
 
 	return Result;
 }

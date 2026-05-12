@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Contributions/GameSettingsTypedContribution.h"
-
+#include "Contributions/GameSettingsRowContribution.h"
+#include "GameplayTagContainer.h"
 #include "GameSettingsContribution_Action.generated.h"
 
 #define UE_API GAMESETTINGS_API
@@ -15,13 +15,10 @@
  * to that event from the settings screen to handle the click.
  */
 UCLASS(MinimalAPI, DisplayName = "Game Setting Action")
-class UGameSettingsContribution_Action : public UGameSettingsTypedContribution
+class UGameSettingsContribution_Action : public UGameSettingsRowContribution
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, Category = "Identity")
-	FGameplayTag ParentTab;
-
 	/** Localized label on the button itself. */
 	UPROPERTY(EditAnywhere, Category = "Display")
 	FText ActionText;
@@ -32,9 +29,13 @@ public:
 
 	UE_API virtual void Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles) override;
 
+	UE_API virtual FPrimaryAssetType GetContributionPrimaryAssetType() const override;
+
 #if WITH_EDITOR
 	UE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	static UE_API const FPrimaryAssetType ContributionPrimaryAssetType;
 };
 
 #undef UE_API

@@ -23,7 +23,7 @@
  * Override ShouldAutoContribute() to gate registration at runtime (a
  * platform check, a beta flag, whatever).
  */
-UCLASS(MinimalAPI, BlueprintType, Abstract, EditInlineNew, DefaultToInstanced)
+UCLASS(MinimalAPI, BlueprintType, Abstract)
 class UGameSettingsAutoContributor : public UGameSettingsContribution
 {
 	GENERATED_BODY()

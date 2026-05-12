@@ -39,6 +39,7 @@ public class GameSettings : ModuleRules
 			new string[]
 			{
 				"ApplicationCore",
+				"AssetRegistry",
 			}
 		);
 	}

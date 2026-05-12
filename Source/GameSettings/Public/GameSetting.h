@@ -6,6 +6,7 @@
 #include "Components/SlateWrapperTypes.h"
 #include "GameSettingFilterState.h"
 #include "GameSettingHandle.h"
+#include "UObject/PrimaryAssetId.h"
 
 #include "GameSetting.generated.h"
 
@@ -43,13 +44,13 @@ public:
 public:
 
 	/**
-	 * GameplayTag identity for this setting. Required: every setting must
-	 * have a unique tag before Initialize runs. Tags give hierarchical
-	 * grouping (e.g. Settings.Audio.MusicVolume), free namespace isolation
-	 * between contributing plugins, and stable identity across renames.
+	 * Primary-asset-id identity for this setting. Required: every setting
+	 * must have a valid id before Initialize runs. Contributions take the
+	 * setting's id from their own GetPrimaryAssetId() so identity is tied
+	 * to the contribution asset and survives renames via the asset manager.
 	 */
-	FGameplayTag GetSettingId() const { return SettingId; }
-	void SetSettingId(const FGameplayTag& Value) { SettingId = Value; }
+	FPrimaryAssetId GetSettingId() const { return SettingId; }
+	void SetSettingId(const FPrimaryAssetId& Value) { SettingId = Value; }
 
 	/**
 	 * Handle assigned by UGameSettingRegistry::AddSetting / AddTab. Invalid
@@ -212,7 +213,7 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UGameSettingRegistry> OwningRegistry;
 
-	FGameplayTag SettingId;
+	FPrimaryAssetId SettingId;
 	FGameSettingHandle Handle;
 	FText DisplayName;
 	ESlateVisibility DisplayNameVisibility = ESlateVisibility::SelfHitTestInvisible;

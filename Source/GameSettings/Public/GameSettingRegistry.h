@@ -70,6 +70,9 @@ public:
 
 	UE_API void GetSettingsForFilter(const FGameSettingFilterState& FilterState, TArray<UGameSetting*>& InOutSettings);
 
+	/** The LocalPlayer this registry was initialized for. */
+	ULocalPlayer* GetOwningLocalPlayer() const { return OwningLocalPlayer; }
+
 	// --- Contribution API --------------------------------------------------
 
 	/**
@@ -80,31 +83,31 @@ public:
 	UE_API FGameSettingHandle AddTab(UGameSettingCollection* InTab);
 
 	/**
-	 * Register a setting under an existing tab (looked up by tag) or at
-	 * the top level if ParentTab is invalid or unknown. Returns a handle
-	 * that the caller retains for symmetric removal.
+	 * Register a setting under an existing tab (looked up by primary asset
+	 * id) or at the top level if ParentTab is invalid or unknown. Returns a
+	 * handle that the caller retains for symmetric removal.
 	 */
-	UE_API FGameSettingHandle AddSetting(UGameSetting* InSetting, FGameplayTag ParentTab = FGameplayTag());
+	UE_API FGameSettingHandle AddSetting(UGameSetting* InSetting, FPrimaryAssetId ParentTab = FPrimaryAssetId());
 
 	/** Remove a setting (and any descendants) by handle. Returns true on success. */
 	UE_API bool RemoveByHandle(const FGameSettingHandle& Handle);
 
-	/** Remove a setting (and any descendants) by GameplayTag identity. */
-	UE_API bool RemoveByTag(const FGameplayTag& Id);
+	/** Remove a setting (and any descendants) by primary asset id. */
+	UE_API bool RemoveById(const FPrimaryAssetId& Id);
 
 	// --- Lookup ------------------------------------------------------------
 
-	/** Look up a setting by its GameplayTag identity. Returns nullptr if not registered. */
-	UE_API UGameSetting* FindSettingByTag(const FGameplayTag& Id) const;
+	/** Look up a setting by its primary asset id. Returns nullptr if not registered. */
+	UE_API UGameSetting* FindSettingById(const FPrimaryAssetId& Id) const;
 
 	/** Look up a setting by its handle. Returns nullptr if no longer present. */
 	UE_API UGameSetting* FindSettingByHandle(const FGameSettingHandle& Handle) const;
 
-	/** Tag lookup that asserts the result and casts to T. */
+	/** Primary-asset-id lookup that asserts the result and casts to T. */
 	template<typename T = UGameSetting>
-	T* FindSettingByTagChecked(const FGameplayTag& Id) const
+	T* FindSettingByIdChecked(const FPrimaryAssetId& Id) const
 	{
-		T* Setting = Cast<T>(FindSettingByTag(Id));
+		T* Setting = Cast<T>(FindSettingById(Id));
 		check(Setting);
 		return Setting;
 	}
@@ -143,8 +146,8 @@ private:
 	/** Removes a setting and its descendants from all bookkeeping. Returns the count removed. */
 	UE_API int32 UnregisterSettingTree(UGameSetting* InSetting);
 
-	/** Resolves a tab tag to a UGameSettingCollection in TopLevelSettings, or nullptr. */
-	UE_API UGameSettingCollection* FindTabByTag(const FGameplayTag& TabId) const;
+	/** Resolves a tab primary-asset-id to a UGameSettingCollection in TopLevelSettings, or nullptr. */
+	UE_API UGameSettingCollection* FindTabById(const FPrimaryAssetId& TabId) const;
 
 	/**
 	 * Runtime cache for handle-to-setting lookup. Not a UPROPERTY because

@@ -2,6 +2,7 @@
 
 #include "Contributions/GameSettingsContribution_Discrete.h"
 
+#include "Contributions/GameSettingsDiscreteOptionsProvider.h"
 #include "GameSettingRegistry.h"
 #include "GameSettingValueDiscreteDynamic.h"
 
@@ -13,31 +14,74 @@
 
 #define LOCTEXT_NAMESPACE "GameSettings"
 
+const FPrimaryAssetType UGameSettingsContribution_Discrete::ContributionPrimaryAssetType = FPrimaryAssetType(TEXT("GameSettingsDiscrete"));
+
+FPrimaryAssetType UGameSettingsContribution_Discrete::GetContributionPrimaryAssetType() const
+{
+	return ContributionPrimaryAssetType;
+}
+
 void UGameSettingsContribution_Discrete::Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles)
 {
-	if (!SettingId.IsValid() || DisplayName.IsEmpty() || !Binding.IsValid() || Options.IsEmpty())
+	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty())
 	{
 		return;
 	}
 
-	UGameSettingValueDiscreteDynamic* Setting = NewObject<UGameSettingValueDiscreteDynamic>(&Registry);
+	const bool bHasCustomSettingClass = SettingClass != nullptr
+		&& SettingClass != UGameSettingValueDiscreteDynamic::StaticClass();
+
+	if (!bHasCustomSettingClass)
+	{
+		// Generic UGameSettingValueDiscreteDynamic requires bindings and at least one option source.
+		if (!Binding.IsValid())
+		{
+			return;
+		}
+		if (Options.IsEmpty() && OptionsProvider == nullptr)
+		{
+			return;
+		}
+	}
+
+	UClass* ClassToUse = SettingClass ? SettingClass.Get() : UGameSettingValueDiscreteDynamic::StaticClass();
+	UGameSettingValueDiscreteDynamic* Setting = NewObject<UGameSettingValueDiscreteDynamic>(&Registry, ClassToUse);
 	ConfigureBaseSetting(*Setting);
 
-	if (TSharedPtr<FGameSettingDataSource> Getter = Binding.CreateGetter())
+	if (Binding.IsValid())
 	{
-		Setting->SetDynamicGetter(Getter.ToSharedRef());
-	}
-	if (TSharedPtr<FGameSettingDataSource> Setter = Binding.CreateSetter())
-	{
-		Setting->SetDynamicSetter(Setter.ToSharedRef());
+		if (TSharedPtr<FGameSettingDataSource> Getter = Binding.CreateGetter())
+		{
+			Setting->SetDynamicGetter(Getter.ToSharedRef());
+		}
+		if (TSharedPtr<FGameSettingDataSource> Setter = Binding.CreateSetter())
+		{
+			Setting->SetDynamicSetter(Setter.ToSharedRef());
+		}
 	}
 	if (!DefaultValue.IsEmpty())
 	{
 		Setting->SetDefaultValueFromString(DefaultValue);
 	}
-	for (const FGameSettingsDiscreteOption& Option : Options)
+
+	// Options. Custom setting classes are assumed to self-manage their options
+	// (overriding OnInitialized / GetDiscreteOptions); the AddDynamicOption
+	// calls below are harmless when ignored by such subclasses.
+	if (OptionsProvider)
 	{
-		Setting->AddDynamicOption(Option.Value, Option.DisplayText);
+		TArray<FGameSettingsDiscreteOption> Generated;
+		OptionsProvider->GenerateOptions(Registry.GetOwningLocalPlayer(), Generated);
+		for (const FGameSettingsDiscreteOption& Option : Generated)
+		{
+			Setting->AddDynamicOption(Option.Value, Option.DisplayText);
+		}
+	}
+	else
+	{
+		for (const FGameSettingsDiscreteOption& Option : Options)
+		{
+			Setting->AddDynamicOption(Option.Value, Option.DisplayText);
+		}
 	}
 
 	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentTab);
@@ -52,22 +96,23 @@ EDataValidationResult UGameSettingsContribution_Discrete::IsDataValid(FDataValid
 {
 	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
-	if (!SettingId.IsValid())
+	const bool bHasCustomSettingClass = SettingClass != nullptr
+		&& SettingClass != UGameSettingValueDiscreteDynamic::StaticClass();
+
+	if (!bHasCustomSettingClass)
 	{
-		Context.AddError(LOCTEXT("Discrete_NoTag", "Discrete contribution: SettingId tag is required."));
-		Result = EDataValidationResult::Invalid;
+		if (Options.IsEmpty() && OptionsProvider == nullptr)
+		{
+			Context.AddError(LOCTEXT("Discrete_NoOptions",
+				"Discrete contribution: provide an OptionsProvider, a non-empty Options array, or a custom SettingClass."));
+			Result = EDataValidationResult::Invalid;
+		}
+		Result = CombineDataValidationResults(Result,
+			Binding.Validate(Context, FString::Printf(TEXT("Discrete '%s'"), *GetPrimaryAssetId().ToString()),
+				EGameSettingsBindingValueType::Discrete));
 	}
-	if (DisplayName.IsEmpty())
-	{
-		Context.AddError(LOCTEXT("Discrete_NoName", "Discrete contribution: DisplayName is required."));
-		Result = EDataValidationResult::Invalid;
-	}
-	if (Options.IsEmpty())
-	{
-		Context.AddError(LOCTEXT("Discrete_NoOptions", "Discrete contribution: at least one option is required."));
-		Result = EDataValidationResult::Invalid;
-	}
-	if (!DefaultValue.IsEmpty())
+
+	if (!DefaultValue.IsEmpty() && OptionsProvider == nullptr && !Options.IsEmpty())
 	{
 		const bool bMatch = Options.ContainsByPredicate(
 			[&](const FGameSettingsDiscreteOption& Opt) { return Opt.Value == DefaultValue; });
@@ -79,8 +124,6 @@ EDataValidationResult UGameSettingsContribution_Discrete::IsDataValid(FDataValid
 			Result = EDataValidationResult::Invalid;
 		}
 	}
-	Result = CombineDataValidationResults(Result,
-		Binding.Validate(Context, FString::Printf(TEXT("Discrete '%s'"), *SettingId.ToString())));
 
 	return Result;
 }

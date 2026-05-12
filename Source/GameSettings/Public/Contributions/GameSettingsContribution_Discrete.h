@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Contributions/GameSettingsBinding.h"
-#include "Contributions/GameSettingsTypedContribution.h"
+#include "Contributions/GameSettingsRowContribution.h"
 
 #include "GameSettingsContribution_Discrete.generated.h"
 
@@ -30,29 +30,50 @@ struct FGameSettingsDiscreteOption
  * The getter must return a string and the setter must accept one; values
  * round-trip through PropertyPathHelpers' string conversion.
  */
+class UGameSettingsDiscreteOptionsProvider;
+class UGameSettingValueDiscreteDynamic;
+
 UCLASS(MinimalAPI, DisplayName = "Game Setting Discrete")
-class UGameSettingsContribution_Discrete : public UGameSettingsTypedContribution
+class UGameSettingsContribution_Discrete : public UGameSettingsRowContribution
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, Category = "Identity")
-	FGameplayTag ParentTab;
-
 	/** Default option's stored value. Must match one of the entries in Options. */
 	UPROPERTY(EditAnywhere, Category = "Value")
 	FString DefaultValue;
 
+	/** Static option list. Ignored when OptionsProvider is set or when SettingClass self-manages. */
 	UPROPERTY(EditAnywhere, Category = "Value")
 	TArray<FGameSettingsDiscreteOption> Options;
+
+	/**
+	 * Optional runtime options provider. When set, generates the option list
+	 * per LocalPlayer and overrides the static Options array.
+	 */
+	UPROPERTY(EditAnywhere, Instanced, Category = "Value")
+	TObjectPtr<UGameSettingsDiscreteOptionsProvider> OptionsProvider;
+
+	/**
+	 * Concrete setting class to instantiate. Default is the generic
+	 * UGameSettingValueDiscreteDynamic, which uses Options/OptionsProvider
+	 * and FGameSettingsBinding. Pick a subclass to take over fully (e.g.
+	 * to handle a "Custom" preset that bypasses the binding).
+	 */
+	UPROPERTY(EditAnywhere, Category = "Value", meta = (MetaClass = "/Script/GameSettings.GameSettingValueDiscreteDynamic"))
+	TSubclassOf<UGameSettingValueDiscreteDynamic> SettingClass;
 
 	UPROPERTY(EditAnywhere, Category = "Value")
 	FGameSettingsBinding Binding;
 
 	UE_API virtual void Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles) override;
 
+	UE_API virtual FPrimaryAssetType GetContributionPrimaryAssetType() const override;
+
 #if WITH_EDITOR
 	UE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
+
+	static UE_API const FPrimaryAssetType ContributionPrimaryAssetType;
 };
 
 #undef UE_API

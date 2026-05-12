@@ -6,6 +6,7 @@
 #include "GameSettingRegistryChangeTracker.h"
 #include "GameplayTagContainer.h"
 #include "MVVMViewModelBase.h"
+#include "UObject/PrimaryAssetId.h"
 
 #include "GameSettingsScreenViewModel.generated.h"
 
@@ -75,10 +76,10 @@ public:
 	UE_API void Cancel();
 
 	UFUNCTION(BlueprintCallable, Category = "Navigation")
-	UE_API void NavigateToTabByTag(FGameplayTag TabId);
+	UE_API void NavigateToTabById(FPrimaryAssetId TabId);
 
 	UFUNCTION(BlueprintCallable, Category = "Navigation")
-	UE_API void NavigateToSettingByTag(FGameplayTag SettingId);
+	UE_API void NavigateToSettingById(FPrimaryAssetId SettingId);
 
 	UFUNCTION(BlueprintCallable, Category = "Navigation")
 	UE_API void PopNavigation();

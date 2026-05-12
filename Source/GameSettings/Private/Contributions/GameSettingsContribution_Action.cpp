@@ -13,9 +13,16 @@
 
 #define LOCTEXT_NAMESPACE "GameSettings"
 
+const FPrimaryAssetType UGameSettingsContribution_Action::ContributionPrimaryAssetType = FPrimaryAssetType(TEXT("GameSettingsAction"));
+
+FPrimaryAssetType UGameSettingsContribution_Action::GetContributionPrimaryAssetType() const
+{
+	return ContributionPrimaryAssetType;
+}
+
 void UGameSettingsContribution_Action::Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles)
 {
-	if (!SettingId.IsValid() || DisplayName.IsEmpty() || !NamedAction.IsValid())
+	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty() || !NamedAction.IsValid())
 	{
 		return;
 	}
@@ -41,16 +48,6 @@ EDataValidationResult UGameSettingsContribution_Action::IsDataValid(FDataValidat
 {
 	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(Context), EDataValidationResult::Valid);
 
-	if (!SettingId.IsValid())
-	{
-		Context.AddError(LOCTEXT("Action_NoTag", "Action contribution: SettingId tag is required."));
-		Result = EDataValidationResult::Invalid;
-	}
-	if (DisplayName.IsEmpty())
-	{
-		Context.AddError(LOCTEXT("Action_NoName", "Action contribution: DisplayName is required."));
-		Result = EDataValidationResult::Invalid;
-	}
 	if (!NamedAction.IsValid())
 	{
 		Context.AddError(LOCTEXT("Action_NoNamedAction", "Action contribution: NamedAction tag is required (this is what the screen handler routes on)."));
