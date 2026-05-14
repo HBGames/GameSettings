@@ -5,6 +5,7 @@
 #include "Contributions/GameSettingsContribution_Action.h"
 #include "Contributions/GameSettingsContribution_Discrete.h"
 #include "Contributions/GameSettingsContribution_Scalar.h"
+#include "Contributions/GameSettingsContribution_Section.h"
 #include "Contributions/GameSettingsContribution_Tab.h"
 #include "Contributions/GameSettingsContribution_Toggle.h"
 
@@ -19,6 +20,17 @@ UFactory_GameSettingsContribution_Tab::UFactory_GameSettingsContribution_Tab()
 UObject* UFactory_GameSettingsContribution_Tab::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject*, FFeedbackContext*)
 {
 	return NewObject<UGameSettingsContribution_Tab>(InParent, InClass, InName, Flags);
+}
+
+UFactory_GameSettingsContribution_Section::UFactory_GameSettingsContribution_Section()
+{
+	SupportedClass = UGameSettingsContribution_Section::StaticClass();
+	bCreateNew = true;
+	bEditAfterNew = true;
+}
+UObject* UFactory_GameSettingsContribution_Section::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject*, FFeedbackContext*)
+{
+	return NewObject<UGameSettingsContribution_Section>(InParent, InClass, InName, Flags);
 }
 
 UFactory_GameSettingsContribution_Toggle::UFactory_GameSettingsContribution_Toggle()

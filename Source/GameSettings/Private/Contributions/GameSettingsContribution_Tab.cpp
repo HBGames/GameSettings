@@ -30,7 +30,7 @@ void UGameSettingsContribution_Tab::Apply(UGameSettingRegistry& Registry, TArray
 	UGameSettingCollection* Tab = NewObject<UGameSettingCollection>(&Registry);
 	ConfigureBaseSetting(*Tab);
 
-	const FGameSettingHandle Handle = Registry.AddTab(Tab);
+	const FGameSettingHandle Handle = Registry.AddCollection(Tab);
 	if (Handle.IsValid())
 	{
 		OutHandles.Add(Handle);

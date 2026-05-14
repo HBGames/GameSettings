@@ -6,6 +6,7 @@
 #include "Contributions/GameSettingsContribution_Action.h"
 #include "Contributions/GameSettingsContribution_Discrete.h"
 #include "Contributions/GameSettingsContribution_Scalar.h"
+#include "Contributions/GameSettingsContribution_Section.h"
 #include "Contributions/GameSettingsContribution_Tab.h"
 #include "Contributions/GameSettingsContribution_Toggle.h"
 
@@ -33,6 +34,17 @@ public:
 	virtual FText GetAssetDisplayName() const override { return LOCTEXT("Tab_Name", "Settings Tab"); }
 	virtual FLinearColor GetAssetColor() const override { return FLinearColor(0.20f, 0.45f, 0.80f); }
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UGameSettingsContribution_Tab::StaticClass(); }
+	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override { return GameSettingsAssetCategories::GetCategories(); }
+};
+
+UCLASS()
+class UAssetDefinition_GameSettingsContribution_Section : public UAssetDefinitionDefault
+{
+	GENERATED_BODY()
+public:
+	virtual FText GetAssetDisplayName() const override { return LOCTEXT("Section_Name", "Settings Section"); }
+	virtual FLinearColor GetAssetColor() const override { return FLinearColor(0.35f, 0.60f, 0.85f); }
+	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UGameSettingsContribution_Section::StaticClass(); }
 	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override { return GameSettingsAssetCategories::GetCategories(); }
 };
 

@@ -21,11 +21,32 @@ struct FGameSettingFilterState;
 enum class EGameSettingChangeReason : uint8;
 
 /**
+ * One entry in the registry's deferred-placement queue. Held by the registry
+ * when a setting is added under a parent that hasn't been registered yet; the
+ * entry is consumed when the matching parent later arrives via AddCollection.
+ *
+ * The setting is kept alive by RegisteredSettings on the registry, so this
+ * struct only needs to remember the desired parent id alongside the setting
+ * pointer for the re-parenting pass.
+ */
+USTRUCT()
+struct FGameSettingDeferredPlacement
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	TObjectPtr<UGameSetting> Setting = nullptr;
+
+	UPROPERTY(Transient)
+	FPrimaryAssetId ParentContainerId;
+};
+
+/**
  * Holds the tree of UGameSetting instances and forwards per-setting
  * events out to whoever's listening (the settings widget, mostly).
  *
  * Not abstract. A project usually constructs a plain UGameSettingRegistry
- * and pushes settings into it through AddSetting / AddTab from a
+ * and pushes settings into it through AddSetting / AddCollection from a
  * UGameFeatureAction, a UGameSettingsAutoContributor, or direct C++.
  * Subclassing still works for projects that prefer to seed everything
  * in OnInitialize, but it's no longer required.
@@ -76,18 +97,28 @@ public:
 	// --- Contribution API --------------------------------------------------
 
 	/**
-	 * Register a top-level tab (a UGameSettingCollection used as a page).
+	 * Register a UGameSettingCollection. With an invalid ParentContainerId it
+	 * lands at the top level (a tab page). With a valid id it nests under
+	 * the named parent collection (a section under a tab, or a section under
+	 * another section). If the parent hasn't been registered yet, the
+	 * collection is held in a deferred-placement queue and re-parented when
+	 * its parent later arrives - any contribution arrival order is safe.
+	 *
 	 * Returns a handle that the caller retains for symmetric removal on
 	 * teardown (plugin unload, GameFeature deactivation, etc.).
 	 */
-	UE_API FGameSettingHandle AddTab(UGameSettingCollection* InTab);
+	UE_API FGameSettingHandle AddCollection(UGameSettingCollection* InCollection, FPrimaryAssetId ParentContainerId = FPrimaryAssetId());
 
 	/**
-	 * Register a setting under an existing tab (looked up by primary asset
-	 * id) or at the top level if ParentTab is invalid or unknown. Returns a
-	 * handle that the caller retains for symmetric removal.
+	 * Register a setting under an existing parent collection (a tab or a
+	 * section) looked up by primary asset id, or at the top level if
+	 * ParentContainerId is invalid. If the parent hasn't been registered
+	 * yet, the setting is held in the deferred-placement queue and
+	 * re-parented when the parent later arrives.
+	 *
+	 * Returns a handle that the caller retains for symmetric removal.
 	 */
-	UE_API FGameSettingHandle AddSetting(UGameSetting* InSetting, FPrimaryAssetId ParentTab = FPrimaryAssetId());
+	UE_API FGameSettingHandle AddSetting(UGameSetting* InSetting, FPrimaryAssetId ParentContainerId = FPrimaryAssetId());
 
 	/** Remove a setting (and any descendants) by handle. Returns true on success. */
 	UE_API bool RemoveByHandle(const FGameSettingHandle& Handle);
@@ -116,8 +147,8 @@ protected:
 	/**
 	 * Subclass hook for projects that want to seed the registry with their
 	 * defaults at construction time. Not pure: the recommended pattern is
-	 * to skip subclassing and contribute via AddSetting / AddTab from a
-	 * UGameFeatureAction or UGameSettingsAutoContributor.
+	 * to skip subclassing and contribute via AddSetting / AddCollection from
+	 * a UGameFeatureAction or UGameSettingsAutoContributor.
 	 */
 	UE_API virtual void OnInitialize(ULocalPlayer* InLocalPlayer);
 
@@ -146,8 +177,22 @@ private:
 	/** Removes a setting and its descendants from all bookkeeping. Returns the count removed. */
 	UE_API int32 UnregisterSettingTree(UGameSetting* InSetting);
 
-	/** Resolves a tab primary-asset-id to a UGameSettingCollection in TopLevelSettings, or nullptr. */
-	UE_API UGameSettingCollection* FindTabById(const FPrimaryAssetId& TabId) const;
+	/**
+	 * Resolves a primary-asset-id to a UGameSettingCollection anywhere in the
+	 * registered tree (top-level tab or nested section). Returns null if no
+	 * matching collection is registered yet.
+	 */
+	UE_API UGameSettingCollection* FindCollectionById(const FPrimaryAssetId& Id) const;
+
+	/**
+	 * Walks the deferred-placement list and re-parents any whose parent now
+	 * exists in the registered tree. Loops until no further progress is
+	 * possible so arbitrarily-deep deferred chains resolve in one call.
+	 */
+	UE_API void FlushDeferredPlacements();
+
+	/** Drop the deferred entry for a specific setting, if present. Used by RemoveByHandle. */
+	UE_API void RemoveFromDeferred(UGameSetting* InSetting);
 
 	/**
 	 * Runtime cache for handle-to-setting lookup. Not a UPROPERTY because
@@ -157,6 +202,16 @@ private:
 	 * is destroyed out from under us.
 	 */
 	TMap<FGameSettingHandle, TWeakObjectPtr<UGameSetting>> SettingsByHandle;
+
+	/**
+	 * Settings whose ParentContainerId pointed at a collection that wasn't
+	 * registered yet at AddSetting / AddCollection time. Each entry is
+	 * re-checked after every successful collection add (see
+	 * FlushDeferredPlacements); the setting stays in RegisteredSettings the
+	 * whole time so handles returned from Add* remain stable.
+	 */
+	UPROPERTY(Transient)
+	TArray<FGameSettingDeferredPlacement> DeferredPlacements;
 };
 
 #undef UE_API

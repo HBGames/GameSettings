@@ -33,11 +33,14 @@ The plugin ships five inline-editable contribution types:
 
 | Class | Purpose |
 |---|---|
-| `Game Setting Tab` | Top-level tab keyed by `SettingId`. Other contributions reference its tag as their `ParentTab` to nest. |
+| `Game Setting Tab` | Top-level tab keyed by `SettingId`. Other contributions reference its primary asset id as their `ParentContainer` to nest. |
+| `Game Setting Section` | Grouping container that nests inside a Tab (or another Section). Rows reference its primary asset id as their `ParentContainer`. |
 | `Game Setting Toggle` | Bool setting bound to a subsystem getter/setter. |
 | `Game Setting Scalar` | Slider with source range, step, optional clamps, and one of eight format functions. |
 | `Game Setting Discrete` | Option-list setting (graphics quality preset, language picker, etc.) bound to a string-keyed getter/setter. |
 | `Game Setting Action` | Button that broadcasts a `NamedAction` tag. The screen handler routes by tag. |
+
+Arrival order between contributions is irrelevant. The registry holds any contribution whose parent hasn't shown up yet in a deferred-placement queue and re-parents it as soon as the parent arrives, regardless of which contribution applied first.
 
 The typed contributions use `FGameSettingsBinding` for property paths.
 Pick the subsystem class (any `ULocalPlayerSubsystem`,

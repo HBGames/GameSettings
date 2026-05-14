@@ -15,6 +15,14 @@ UUserWidget& UGameSettingsListView::OnGenerateEntryWidgetInternal(UObject* Item,
 	TSubclassOf<UUserWidget> DesiredEntryClass,
 	const TSharedRef<STableViewBase>& OwnerTable)
 {
+	// At design time the engine feeds in ListViewDesignerPreviewItem placeholders so the
+	// designer can render preview rows. Skip the VM dispatch entirely and use the configured
+	// EntryWidgetClass so the designer preview keeps working without firing the ensure below.
+	if (IsDesignTime())
+	{
+		return GenerateTypedEntry<UUserWidget>(DesiredEntryClass, OwnerTable);
+	}
+
 	UGameSettingViewModel* ItemVM = Cast<UGameSettingViewModel>(Item);
 	ensureMsgf(ItemVM, TEXT("UGameSettingsListView received a non-VM item (%s)"),
 		Item ? *Item->GetClass()->GetName() : TEXT("null"));
@@ -61,7 +69,7 @@ UUserWidget& UGameSettingsListView::OnGenerateEntryWidgetInternal(UObject* Item,
 	// Wire the entry's MVVM view to point at this row's VM. The entry's BP
 	// MVVM panel must declare a viewmodel slot named "Setting" expecting
 	// UGameSettingViewModel (or a subclass).
-	if (!IsDesignTime() && ItemVM)
+	if (ItemVM)
 	{
 		if (UMVVMView* EntryView = UMVVMSubsystem::GetViewFromUserWidget(&EntryWidget))
 		{

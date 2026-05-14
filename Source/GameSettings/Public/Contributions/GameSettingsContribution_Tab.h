@@ -10,8 +10,9 @@
 
 /**
  * Registers a top-level tab (a UGameSettingCollection) keyed by SettingId.
- * Other contributions reference SettingId as their ParentTab to nest
- * under it. Tabs themselves don't bind to anything; they're containers.
+ * Other contributions reference SettingId as their ParentContainer to nest
+ * under it - directly for rows, or as the parent of a Section which then
+ * holds rows. Tabs themselves don't bind to anything; they're containers.
  */
 UCLASS(MinimalAPI, DisplayName = "Game Setting Tab")
 class UGameSettingsContribution_Tab : public UGameSettingsTypedContribution
@@ -26,7 +27,7 @@ public:
 	UE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
 
-	/** "GameSettingsTab" - used as the AllowedTypes filter on ParentTab pickers. */
+	/** "GameSettingsTab" - one of the AllowedTypes for ParentContainer pickers (alongside GameSettingsSection). */
 	static UE_API const FPrimaryAssetType ContributionPrimaryAssetType;
 };
 

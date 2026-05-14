@@ -9,8 +9,8 @@
 /**
  * Opaque handle to a setting registered with UGameSettingRegistry.
  *
- * AddSetting and AddTab return one. Pass it back to RemoveByHandle on
- * teardown. The handle is a process-wide 64-bit counter, cheap to copy
+ * AddSetting and AddCollection return one. Pass it back to RemoveByHandle
+ * on teardown. The handle is a process-wide 64-bit counter, cheap to copy
  * and hash. It's stable for the run, not across runs.
  *
  * Value 0 is the invalid / default-constructed sentinel.

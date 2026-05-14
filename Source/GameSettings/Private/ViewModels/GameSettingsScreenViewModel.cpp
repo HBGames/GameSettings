@@ -83,6 +83,13 @@ void UGameSettingsScreenViewModel::SetCurrentTab(UGameSettingViewModel* InTab)
 	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(CanPopNavigation);
 
 	RebuildVisibleSettings();
+
+	// Auto-focus the first visible setting on the new tab so the detail view
+	// has content immediately. Lyra's panel does the same after tab swap.
+	// Clears focus when the tab is empty so the detail panel doesn't show
+	// stale data from the previous tab.
+	UGameSettingViewModel* FirstVisible = VisibleSettings.Num() > 0 ? VisibleSettings[0] : nullptr;
+	SetFocusedSetting(FirstVisible);
 }
 
 void UGameSettingsScreenViewModel::SetFocusedSetting(UGameSettingViewModel* InVM)

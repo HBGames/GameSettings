@@ -84,7 +84,7 @@ void UGameSettingsContribution_Discrete::Apply(UGameSettingRegistry& Registry, T
 		}
 	}
 
-	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentTab);
+	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentContainer);
 	if (Handle.IsValid())
 	{
 		OutHandles.Add(Handle);

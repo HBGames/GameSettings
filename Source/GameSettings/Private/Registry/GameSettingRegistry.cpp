@@ -29,11 +29,26 @@ void UGameSettingRegistry::OnInitialize(ULocalPlayer* InLocalPlayer)
 {
 	// Default: do nothing. Projects that prefer the Lyra-shape pattern
 	// override this to seed their settings; everyone else uses AddSetting /
-	// AddTab and lets the registry stay empty until contributors push.
+	// AddCollection and lets the registry stay empty until contributors push.
 }
 
 void UGameSettingRegistry::Regenerate()
 {
+	// Surface any deferred placements that never resolved before we drop them.
+	// A leftover entry here means a row referenced a tab/section that no
+	// contribution ever provided - almost always a typo on ParentContainer.
+	for (const FGameSettingDeferredPlacement& Orphan : DeferredPlacements)
+	{
+		if (UGameSetting* OrphanSetting = Orphan.Setting)
+		{
+			UE_LOG(LogGameSettings, Warning,
+				TEXT("Regenerate: setting '%s' never resolved its parent container '%s'; check that a contribution provides that id."),
+				*OrphanSetting->GetSettingId().ToString(),
+				*Orphan.ParentContainerId.ToString());
+		}
+	}
+	DeferredPlacements.Reset();
+
 	for (UGameSetting* Setting : RegisteredSettings)
 	{
 		Setting->MarkAsGarbage();
@@ -114,25 +129,54 @@ UGameSetting* UGameSettingRegistry::FindSettingById(const FPrimaryAssetId& Id) c
 
 // --- Contribution API --------------------------------------------------
 
-FGameSettingHandle UGameSettingRegistry::AddTab(UGameSettingCollection* InTab)
+FGameSettingHandle UGameSettingRegistry::AddCollection(UGameSettingCollection* InCollection, FPrimaryAssetId ParentContainerId)
 {
-	if (!InTab)
+	if (!InCollection)
 	{
-		UE_LOG(LogGameSettings, Warning, TEXT("AddTab called with null collection"));
+		UE_LOG(LogGameSettings, Warning, TEXT("AddCollection called with null collection"));
 		return FGameSettingHandle{};
 	}
 
 	const FGameSettingHandle NewHandle = FGameSettingHandle::Generate();
-	InTab->SetHandle(NewHandle);
+	InCollection->SetHandle(NewHandle);
 
-	TopLevelSettings.Add(InTab);
-	WireSettingTree(InTab);
+	// Register the collection in our bookkeeping immediately so handle / id
+	// lookups work even before it lands at its final position in the tree.
+	WireSettingTree(InCollection);
+
+	UGameSettingCollection* ParentCollection = ParentContainerId.IsValid() ? FindCollectionById(ParentContainerId) : nullptr;
+
+	if (ParentCollection)
+	{
+		ParentCollection->AddSetting(InCollection);
+	}
+	else if (ParentContainerId.IsValid())
+	{
+		// Parent specified but not yet registered. Hold the collection in the
+		// deferred queue and let FlushDeferredPlacements re-parent it once the
+		// parent arrives. The collection stays in RegisteredSettings, so id
+		// lookups against it succeed - which means rows that want to nest
+		// under THIS collection can still find it as their parent.
+		DeferredPlacements.Add({ InCollection, ParentContainerId });
+		UE_LOG(LogGameSettings, Verbose,
+			TEXT("AddCollection('%s') deferred: parent '%s' not yet registered."),
+			*InCollection->GetSettingId().ToString(),
+			*ParentContainerId.ToString());
+	}
+	else
+	{
+		// No parent specified - this is a top-level tab page.
+		TopLevelSettings.Add(InCollection);
+	}
+
+	// The new collection might unblock previously-deferred children.
+	FlushDeferredPlacements();
 
 	OnStructureChangedEvent.Broadcast(this);
 	return NewHandle;
 }
 
-FGameSettingHandle UGameSettingRegistry::AddSetting(UGameSetting* InSetting, FPrimaryAssetId ParentTab)
+FGameSettingHandle UGameSettingRegistry::AddSetting(UGameSetting* InSetting, FPrimaryAssetId ParentContainerId)
 {
 	if (!InSetting)
 	{
@@ -140,28 +184,41 @@ FGameSettingHandle UGameSettingRegistry::AddSetting(UGameSetting* InSetting, FPr
 		return FGameSettingHandle{};
 	}
 
+	// Collections route through AddCollection so they participate as parents
+	// for further deferred placements. Forwarding here keeps callers from
+	// having to know about the distinction.
+	if (UGameSettingCollection* AsCollection = Cast<UGameSettingCollection>(InSetting))
+	{
+		return AddCollection(AsCollection, ParentContainerId);
+	}
+
 	const FGameSettingHandle NewHandle = FGameSettingHandle::Generate();
 	InSetting->SetHandle(NewHandle);
 
-	// Resolve parent tab if specified; fall back to top-level on miss.
-	UGameSettingCollection* ParentCollection = ParentTab.IsValid() ? FindTabById(ParentTab) : nullptr;
-	if (ParentTab.IsValid() && !ParentCollection)
-	{
-		UE_LOG(LogGameSettings, Warning, TEXT("AddSetting('%s') requested parent tab '%s' but no such tab is registered; adding at top level."),
-			   *InSetting->GetSettingId().ToString(),
-			   *ParentTab.ToString());
-	}
+	// Register immediately so handle lookups work even while the setting is
+	// in the deferred queue.
+	WireSettingTree(InSetting);
+
+	UGameSettingCollection* ParentCollection = ParentContainerId.IsValid() ? FindCollectionById(ParentContainerId) : nullptr;
 
 	if (ParentCollection)
 	{
 		ParentCollection->AddSetting(InSetting);
 	}
+	else if (ParentContainerId.IsValid())
+	{
+		// Parent specified but not registered yet. Queue and wait.
+		DeferredPlacements.Add({ InSetting, ParentContainerId });
+		UE_LOG(LogGameSettings, Verbose,
+			TEXT("AddSetting('%s') deferred: parent '%s' not yet registered."),
+			*InSetting->GetSettingId().ToString(),
+			*ParentContainerId.ToString());
+	}
 	else
 	{
+		// No parent specified - top-level row.
 		TopLevelSettings.Add(InSetting);
 	}
-
-	WireSettingTree(InSetting);
 
 	OnStructureChangedEvent.Broadcast(this);
 	return NewHandle;
@@ -181,12 +238,15 @@ bool UGameSettingRegistry::RemoveByHandle(const FGameSettingHandle& Handle)
 		return false;
 	}
 
-	// Detach from parent collection / TopLevelSettings before recursive unregister.
+	// Detach from wherever the setting currently lives: parent collection,
+	// the top-level array, OR the deferred-placement queue (in which case it
+	// has no parent and isn't top-level either).
 	if (UGameSettingCollection* Parent = Cast<UGameSettingCollection>(Setting->GetSettingParent()))
 	{
 		Parent->RemoveSetting(Setting);
 	}
 	TopLevelSettings.Remove(Setting);
+	RemoveFromDeferred(Setting);
 
 	const int32 RemovedCount = UnregisterSettingTree(Setting);
 	UE_LOG(LogGameSettings, Verbose, TEXT("RemoveByHandle %s removed %d setting(s)"),
@@ -212,16 +272,72 @@ UGameSetting* UGameSettingRegistry::FindSettingByHandle(const FGameSettingHandle
 	return Found ? Found->Get() : nullptr;
 }
 
-UGameSettingCollection* UGameSettingRegistry::FindTabById(const FPrimaryAssetId& TabId) const
+UGameSettingCollection* UGameSettingRegistry::FindCollectionById(const FPrimaryAssetId& Id) const
 {
-	for (UGameSetting* TopLevel : TopLevelSettings)
+	if (!Id.IsValid())
 	{
-		if (TopLevel && TopLevel->GetSettingId() == TabId)
+		return nullptr;
+	}
+
+	// RegisteredSettings holds every setting in the tree including nested
+	// collections, so a single linear walk handles both top-level tabs and
+	// nested sections. Linear is fine: registered counts in practice are in
+	// the dozens to low hundreds.
+	for (UGameSetting* Setting : RegisteredSettings)
+	{
+		if (Setting && Setting->GetSettingId() == Id)
 		{
-			return Cast<UGameSettingCollection>(TopLevel);
+			return Cast<UGameSettingCollection>(Setting);
 		}
 	}
 	return nullptr;
+}
+
+void UGameSettingRegistry::FlushDeferredPlacements()
+{
+	// Loop until no further progress: a section whose tab just arrived may
+	// unblock rows that were waiting for that section, which may in turn
+	// unblock further nested entries. Bounded by the deferred-array size, so
+	// the worst-case cost is O(N^2) over a small N.
+	bool bMadeProgress = true;
+	while (bMadeProgress)
+	{
+		bMadeProgress = false;
+		for (int32 Index = DeferredPlacements.Num() - 1; Index >= 0; --Index)
+		{
+			const FGameSettingDeferredPlacement& Entry = DeferredPlacements[Index];
+			UGameSettingCollection* Parent = FindCollectionById(Entry.ParentContainerId);
+			if (!Parent || Parent == Entry.Setting)
+			{
+				// Parent not registered yet, or the parent IS this entry (self-reference; treat as orphan).
+				continue;
+			}
+
+			UGameSetting* PendingSetting = Entry.Setting;
+			DeferredPlacements.RemoveAt(Index);
+
+			if (PendingSetting)
+			{
+				Parent->AddSetting(PendingSetting);
+				bMadeProgress = true;
+			}
+		}
+	}
+}
+
+void UGameSettingRegistry::RemoveFromDeferred(UGameSetting* InSetting)
+{
+	if (!InSetting)
+	{
+		return;
+	}
+	for (int32 Index = DeferredPlacements.Num() - 1; Index >= 0; --Index)
+	{
+		if (DeferredPlacements[Index].Setting == InSetting)
+		{
+			DeferredPlacements.RemoveAt(Index);
+		}
+	}
 }
 
 // --- Wiring helpers ---------------------------------------------------

@@ -36,7 +36,7 @@ void UGameSettingsContribution_Action::Apply(UGameSettingRegistry& Registry, TAr
 	}
 	Setting->SetNamedAction(NamedAction);
 
-	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentTab);
+	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentContainer);
 	if (Handle.IsValid())
 	{
 		OutHandles.Add(Handle);

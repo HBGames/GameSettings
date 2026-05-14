@@ -63,7 +63,7 @@ void UGameSettingsContribution_Scalar::Apply(UGameSettingRegistry& Registry, TAr
 	if (MaximumLimit.IsSet()) Setting->SetMaximumLimit(MaximumLimit.GetValue());
 	Setting->SetDisplayFormat(ResolveFormat(DisplayFormat));
 
-	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentTab);
+	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentContainer);
 	if (Handle.IsValid())
 	{
 		OutHandles.Add(Handle);

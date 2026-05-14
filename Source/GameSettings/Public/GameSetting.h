@@ -53,10 +53,10 @@ public:
 	void SetSettingId(const FPrimaryAssetId& Value) { SettingId = Value; }
 
 	/**
-	 * Handle assigned by UGameSettingRegistry::AddSetting / AddTab. Invalid
-	 * for settings constructed standalone (i.e. not yet registered) or for
-	 * settings registered through the legacy RegisterSetting path that
-	 * predates the handle system.
+	 * Handle assigned by UGameSettingRegistry::AddSetting / AddCollection.
+	 * Invalid for settings constructed standalone (i.e. not yet registered)
+	 * or for settings registered through the legacy RegisterSetting path
+	 * that predates the handle system.
 	 */
 	FGameSettingHandle GetHandle() const { return Handle; }
 

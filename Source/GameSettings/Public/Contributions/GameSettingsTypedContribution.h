@@ -29,7 +29,7 @@ public:
 	FText DisplayName;
 
 	/** Rich-text description shown in the detail panel. Optional. */
-	UPROPERTY(EditAnywhere, Category = "Display", meta = (MultiLine = "true"))
+	UPROPERTY(EditAnywhere, Category = "Display", DisplayName = "Description", meta = (MultiLine = "true"))
 	FText DescriptionRichText;
 
 #if WITH_EDITOR

@@ -40,7 +40,7 @@ void UGameSettingsContribution_Toggle::Apply(UGameSettingRegistry& Registry, TAr
 	}
 	Setting->SetDefaultValue(bDefaultValue);
 
-	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentTab);
+	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentContainer);
 	if (Handle.IsValid())
 	{
 		OutHandles.Add(Handle);

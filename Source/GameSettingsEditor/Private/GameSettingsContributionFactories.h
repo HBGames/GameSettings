@@ -24,6 +24,15 @@ public:
 };
 
 UCLASS()
+class UFactory_GameSettingsContribution_Section : public UFactory
+{
+	GENERATED_BODY()
+public:
+	UFactory_GameSettingsContribution_Section();
+	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+};
+
+UCLASS()
 class UFactory_GameSettingsContribution_Toggle : public UFactory
 {
 	GENERATED_BODY()
