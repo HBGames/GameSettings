@@ -88,6 +88,7 @@ void UGameSettingsContribution_Discrete::Apply(UGameSettingRegistry& Registry, T
 	if (Handle.IsValid())
 	{
 		OutHandles.Add(Handle);
+		Registry.ApplyEditConditionSpecs(Setting, EditConditions);
 	}
 }
 

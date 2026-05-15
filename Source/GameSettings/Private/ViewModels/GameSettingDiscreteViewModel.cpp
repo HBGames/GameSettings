@@ -24,7 +24,7 @@ void UGameSettingDiscreteViewModel::SetSelectedIndex(int32 NewIndex)
 
 	SelectedIndex = NewIndex;
 	Discrete->SetDiscreteOptionByIndex(NewIndex);
-	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSelectedIndex);
+	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(SelectedIndex);
 
 	const bool bIsAtDefaultNow = (SelectedIndex == DefaultIndex);
 	if (bWasAtDefault != bIsAtDefaultNow)
@@ -47,14 +47,14 @@ void UGameSettingDiscreteViewModel::RefreshFromSetting()
 	if (!AreFTextArraysEqual(Options, NewOptions))
 	{
 		Options = MoveTemp(NewOptions);
-		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetOptions);
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(Options);
 	}
 
 	const int32 NewDefault = Discrete->GetDiscreteOptionDefaultIndex();
 	if (DefaultIndex != NewDefault)
 	{
 		DefaultIndex = NewDefault;
-		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetDefaultIndex);
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(DefaultIndex);
 	}
 
 	const int32 NewSelected = Discrete->GetDiscreteOptionIndex();
@@ -62,7 +62,7 @@ void UGameSettingDiscreteViewModel::RefreshFromSetting()
 	{
 		const bool bWasAtDefault = (SelectedIndex == DefaultIndex);
 		SelectedIndex = NewSelected;
-		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSelectedIndex);
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(SelectedIndex);
 
 		const bool bIsAtDefaultNow = (SelectedIndex == DefaultIndex);
 		if (bWasAtDefault != bIsAtDefaultNow)

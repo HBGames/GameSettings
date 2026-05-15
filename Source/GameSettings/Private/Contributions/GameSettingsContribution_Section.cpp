@@ -36,6 +36,7 @@ void UGameSettingsContribution_Section::Apply(UGameSettingRegistry& Registry, TA
 	if (Handle.IsValid())
 	{
 		OutHandles.Add(Handle);
+		Registry.ApplyEditConditionSpecs(Section, EditConditions);
 	}
 }
 

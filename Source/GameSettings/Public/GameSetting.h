@@ -126,8 +126,19 @@ public:
 	/** Adds a new edit condition to this setting, allowing you to control the visibility and edit-ability of this setting. */
 	UE_API void AddEditCondition(const TSharedRef<FGameSettingEditCondition>& InEditCondition);
 
+	/**
+	 * Detach a previously-added edit condition. Used by the registry's
+	 * CleanupEditConditionsForRemovedTarget pass when a setting referenced by
+	 * an edit condition is unregistered (GameFeature unload). After the call,
+	 * RefreshEditableState recomputes without the dropped condition.
+	 */
+	UE_API void RemoveEditCondition(const TSharedRef<FGameSettingEditCondition>& InEditCondition);
+
 	/** Add setting dependency, if these settings change, we'll re-evaluate edit conditions for this setting. */
 	UE_API void AddEditDependency(UGameSetting* DependencySetting);
+
+	/** Read-only access to the installed edit-condition list. Useful for tests and dev overlays. */
+	const TArray<TSharedRef<FGameSettingEditCondition>>& GetEditConditions() const { return EditConditions; }
 
 	/** The parent object that owns the setting, in most cases the collection, but for top level settings the registry. */
 	UE_API void SetSettingParent(UGameSetting* InSettingParent);

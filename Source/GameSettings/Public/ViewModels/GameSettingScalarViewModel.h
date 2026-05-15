@@ -23,18 +23,21 @@ UCLASS(MinimalAPI, BlueprintType, DisplayName = "Game Setting Scalar")
 class UGameSettingScalarViewModel : public UGameSettingViewModel
 {
 	GENERATED_BODY()
+
 public:
-	// Two-way binding pair.
+	// Two-way binding pair. NormalizedValue is a UPROPERTY anchor (below) so the
+	// MVVM compiler resolves a single bindable field with both Get and Set sides.
+	// FieldNotify lives on the property, not on the getter UFUNCTION.
 
 	UFUNCTION(BlueprintCallable, Category = "Value")
 	UE_API void SetNormalizedValue(double NewValue);
 
-	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Value")
+	UFUNCTION(BlueprintCallable, Category = "Value")
 	double GetNormalizedValue() const { return NormalizedValue; }
 
 	// Read-only display.
 
-	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Value")
+	UFUNCTION(BlueprintCallable, Category = "Value")
 	const FText& GetFormattedText() const { return FormattedText; }
 
 	// Constants from the setting; not FieldNotify.
@@ -52,8 +55,19 @@ protected:
 	UE_API virtual void RefreshFromSetting() override;
 
 private:
+	/**
+	 * Two-way bindable. Getter / Setter (C++ accessors) auto-detect GetNormalizedValue / SetNormalizedValue
+	 * by naming convention - that's what MVVM's binding compiler looks at when building the FieldNotify
+	 * field handles. BlueprintGetter / BlueprintSetter route BP-side reads / writes through the same
+	 * UFUNCTIONs.
+	 */
+	UPROPERTY(BlueprintReadWrite, Getter, Setter, FieldNotify, BlueprintGetter=GetNormalizedValue, BlueprintSetter=SetNormalizedValue, Category="Value", meta=(AllowPrivateAccess=true))
 	double NormalizedValue = 0.0;
+
+	/** One-way readable display string. */
+	UPROPERTY(BlueprintReadOnly, Getter, FieldNotify, BlueprintGetter=GetFormattedText, Category="Value", meta=(AllowPrivateAccess=true))
 	FText FormattedText;
+
 	double SourceMin = 0.0;
 	double SourceMax = 1.0;
 	double Step = 0.01;

@@ -89,8 +89,8 @@ public:
     virtual void Apply(UGameSettingRegistry& Registry,
                        TArray<FGameSettingHandle>& OutHandles) override
     {
-        UGameSettingValueDiscreteDynamic_Bool* Toggle =
-            NewObject<UGameSettingValueDiscreteDynamic_Bool>(&Registry);
+        UGameSettingValueBool* Toggle =
+            NewObject<UGameSettingValueBool>(&Registry);
 
         Toggle->SetSettingId(
             FGameplayTag::RequestGameplayTag("Settings.MyGame.ShowDamageNumbers"));

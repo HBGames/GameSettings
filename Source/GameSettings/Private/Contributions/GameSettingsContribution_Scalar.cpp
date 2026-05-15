@@ -67,6 +67,7 @@ void UGameSettingsContribution_Scalar::Apply(UGameSettingRegistry& Registry, TAr
 	if (Handle.IsValid())
 	{
 		OutHandles.Add(Handle);
+		Registry.ApplyEditConditionSpecs(Setting, EditConditions);
 	}
 }
 

@@ -18,20 +18,21 @@ class UGameSettingDiscreteViewModel : public UGameSettingViewModel
 {
 	GENERATED_BODY()
 public:
-	// Two-way binding pair.
+	// Two-way binding pair. SelectedIndex is a UPROPERTY anchor (below) so the
+	// MVVM compiler resolves a single bindable field with both Get and Set sides.
 
 	UFUNCTION(BlueprintCallable, Category = "Value")
 	UE_API void SetSelectedIndex(int32 NewIndex);
 
-	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Value")
+	UFUNCTION(BlueprintCallable, Category = "Value")
 	int32 GetSelectedIndex() const { return SelectedIndex; }
 
 	// Read-only.
 
-	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Value")
+	UFUNCTION(BlueprintCallable, Category = "Value")
 	const TArray<FText>& GetOptions() const { return Options; }
 
-	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Value")
+	UFUNCTION(BlueprintCallable, Category = "Value")
 	int32 GetDefaultIndex() const { return DefaultIndex; }
 
 	UFUNCTION(BlueprintCallable, FieldNotify, Category = "State")
@@ -41,8 +42,20 @@ protected:
 	UE_API virtual void RefreshFromSetting() override;
 
 private:
-	TArray<FText> Options;
+	/**
+	 * Two-way bindable. Getter / Setter (C++ accessors) auto-detect GetSelectedIndex / SetSelectedIndex
+	 * by naming convention - that's what MVVM's binding compiler looks at when building the FieldNotify
+	 * field handles.
+	 */
+	UPROPERTY(BlueprintReadWrite, Getter, Setter, FieldNotify, BlueprintGetter=GetSelectedIndex, BlueprintSetter=SetSelectedIndex, Category="Value", meta=(AllowPrivateAccess=true))
 	int32 SelectedIndex = INDEX_NONE;
+
+	/** Available options. One-way readable; updated when the underlying setting's options change. */
+	UPROPERTY(BlueprintReadOnly, Getter, FieldNotify, BlueprintGetter=GetOptions, Category="Value", meta=(AllowPrivateAccess=true))
+	TArray<FText> Options;
+
+	/** Index of the default option. One-way readable. */
+	UPROPERTY(BlueprintReadOnly, Getter, FieldNotify, BlueprintGetter=GetDefaultIndex, Category="Value", meta=(AllowPrivateAccess=true))
 	int32 DefaultIndex = INDEX_NONE;
 };
 

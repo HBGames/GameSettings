@@ -204,6 +204,12 @@ void UGameSetting::AddEditCondition(const TSharedRef<FGameSettingEditCondition>&
 	InEditCondition->OnEditConditionChangedEvent.AddUObject(this, &ThisClass::RefreshEditableState);
 }
 
+void UGameSetting::RemoveEditCondition(const TSharedRef<FGameSettingEditCondition>& InEditCondition)
+{
+	InEditCondition->OnEditConditionChangedEvent.RemoveAll(this);
+	EditConditions.Remove(InEditCondition);
+}
+
 void UGameSetting::AddEditDependency(UGameSetting* DependencySetting)
 {
 	if (ensure(DependencySetting))

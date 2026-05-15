@@ -3,6 +3,11 @@
 Three contribution paths. Pick the one that matches where your settings
 code lives.
 
+> Adding visibility / enabled rules to a setting? See
+> [EDIT_CONDITIONS.md](EDIT_CONDITIONS.md). Every typed contribution carries
+> an `EditConditions` array; the six built-in spec types cover the Lyra
+> declarative surface and extend in C++ or Blueprint.
+
 | You're writing... | Use |
 |---|---|
 | A GameFeaturePlugin (cosmetic pack, beta features, content drop) | GFP action |
@@ -61,7 +66,7 @@ class UMyPlugin_Settings_Foo : public UGameSettingsContribution
 public:
     virtual void Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles) override
     {
-        UGameSettingValueDiscreteDynamic_Bool* Setting = NewObject<UGameSettingValueDiscreteDynamic_Bool>(&Registry);
+        UGameSettingValueBool* Setting = NewObject<UGameSettingValueBool>(&Registry);
         Setting->SetSettingId(FGameplayTag::RequestGameplayTag("Settings.MyPlugin.Foo"));
         Setting->SetDisplayName(NSLOCTEXT("MyPlugin", "Foo_Name", "Enable Foo"));
         Setting->SetDescriptionRichText(NSLOCTEXT("MyPlugin", "Foo_Desc", "Toggles whatever Foo does."));

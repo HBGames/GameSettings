@@ -185,35 +185,6 @@ TArray<FText> UGameSettingValueDiscreteDynamic::GetDiscreteOptions() const
 }
 
 //////////////////////////////////////////////////////////////////////////
-// UGameSettingValueDiscreteDynamic_Bool
-//////////////////////////////////////////////////////////////////////////
-
-UGameSettingValueDiscreteDynamic_Bool::UGameSettingValueDiscreteDynamic_Bool()
-{
-	AddDynamicOption(TEXT("false"), LOCTEXT("OFF", "OFF"));
-	AddDynamicOption(TEXT("true"), LOCTEXT("ON", "ON"));
-}
-
-void UGameSettingValueDiscreteDynamic_Bool::SetTrueText(const FText& InText)
-{
-	// We remove and then re-add it, so that by changing the true/false text you can also control the order they appear.
-	RemoveDynamicOption(TEXT("true"));
-	AddDynamicOption(TEXT("true"), InText);
-}
-
-void UGameSettingValueDiscreteDynamic_Bool::SetFalseText(const FText& InText)
-{
-	// We remove and then re-add it, so that by changing the true/false text you can also control the order they appear.
-	RemoveDynamicOption(TEXT("false"));
-	AddDynamicOption(TEXT("false"), InText);
-}
-
-void UGameSettingValueDiscreteDynamic_Bool::SetDefaultValue(bool Value)
-{
-	DefaultValue = LexToString(Value);
-}
-
-//////////////////////////////////////////////////////////////////////////
 // UGameSettingValueDiscreteDynamic_Number
 //////////////////////////////////////////////////////////////////////////
 

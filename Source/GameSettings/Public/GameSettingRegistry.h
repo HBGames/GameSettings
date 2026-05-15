@@ -16,6 +16,8 @@
 
 class ULocalPlayer;
 class UGameSettingCollection;
+class UGameSettingEditConditionSpec;
+class FGameSettingEditCondition;
 struct FGameSettingFilterState;
 
 enum class EGameSettingChangeReason : uint8;
@@ -39,6 +41,31 @@ struct FGameSettingDeferredPlacement
 
 	UPROPERTY(Transient)
 	FPrimaryAssetId ParentContainerId;
+};
+
+/**
+ * One entry in the registry's deferred edit-condition queue. Held by the
+ * registry when a contribution's spec references a target setting that
+ * isn't registered yet; the entry is reflushed every time a new setting is
+ * added and is installed once every target resolves.
+ *
+ * Owner and Spec are kept alive elsewhere (Owner by RegisteredSettings, Spec
+ * by the contribution UPRIMARY data asset), so the struct holds them as
+ * regular UPROPERTYs without rooting concerns.
+ */
+USTRUCT()
+struct FGameSettingDeferredEditCondition
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	TObjectPtr<UGameSetting> Owner = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UGameSettingEditConditionSpec> Spec = nullptr;
+
+	UPROPERTY(Transient)
+	TArray<FPrimaryAssetId> MissingTargets;
 };
 
 /**
@@ -126,6 +153,21 @@ public:
 	/** Remove a setting (and any descendants) by primary asset id. */
 	UE_API bool RemoveById(const FPrimaryAssetId& Id);
 
+	/**
+	 * Wire a contribution's authored edit-condition specs onto a setting that
+	 * just landed in the registry. Eagerly installs any spec whose targets
+	 * are already registered; queues anything still waiting on an unresolved
+	 * target. Idempotent: re-applying the same Owner+Spec pair is a no-op.
+	 *
+	 * Called by every UGameSettingsContribution_* subclass's Apply() right
+	 * after AddSetting / AddCollection succeeds.
+	 */
+	UE_API void ApplyEditConditionSpecs(UGameSetting* Owner,
+		const TArray<TObjectPtr<UGameSettingEditConditionSpec>>& Specs);
+
+	/** How many edit-condition specs are currently waiting on missing targets. */
+	int32 GetNumDeferredEditConditions() const { return DeferredEditConditions.Num(); }
+
 	// --- Lookup ------------------------------------------------------------
 
 	/** Look up a setting by its primary asset id. Returns nullptr if not registered. */
@@ -171,6 +213,36 @@ protected:
 	TObjectPtr<ULocalPlayer> OwningLocalPlayer;
 
 private:
+	/**
+	 * One record of an installed edit-condition spec. Held in
+	 * AppliedEditConditions, keyed by Owner. Targets are weak so unloads
+	 * self-evict; Condition keeps the SharedRef alive for cleanup.
+	 */
+	struct FAppliedEditConditionRecord
+	{
+		TWeakObjectPtr<UGameSettingEditConditionSpec> Spec;
+		TSharedPtr<FGameSettingEditCondition>         Condition;
+		TArray<TWeakObjectPtr<UGameSetting>>          Targets;
+	};
+
+	/** Build + install one spec on the owner, recording the wire-up. */
+	UE_API void InstallSpec(UGameSetting* Owner, UGameSettingEditConditionSpec* Spec);
+
+	/**
+	 * Walk DeferredEditConditions and install anything whose targets have
+	 * arrived since the last flush. Re-runs until quiescent so multi-hop
+	 * chains converge in one call. Compacts stale weak entries on entry.
+	 */
+	UE_API void FlushDeferredEditConditions();
+
+	/**
+	 * Reverse-lookup cleanup. Called from UnregisterSettingTree on the
+	 * target side: every applied-edit-condition record that lists this
+	 * setting as a target gets dropped from its owner (RemoveEditCondition
+	 * + RefreshEditableState).
+	 */
+	UE_API void CleanupEditConditionsForRemovedTarget(UGameSetting* RemovedTarget);
+
 	/** Wires events on a setting and any descendants. Idempotent on re-add. */
 	UE_API void WireSettingTree(UGameSetting* InSetting);
 
@@ -212,6 +284,22 @@ private:
 	 */
 	UPROPERTY(Transient)
 	TArray<FGameSettingDeferredPlacement> DeferredPlacements;
+
+	/**
+	 * Edit-condition specs queued because at least one referenced target
+	 * setting wasn't registered yet. Flushed on every AddSetting/AddCollection
+	 * (after FlushDeferredPlacements) and once more at the end of Regenerate.
+	 */
+	UPROPERTY(Transient)
+	TArray<FGameSettingDeferredEditCondition> DeferredEditConditions;
+
+	/**
+	 * Installed edit-condition records keyed by owner. Used for idempotent
+	 * re-apply detection and for target-removal cleanup. Owners are weak so
+	 * stale entries self-evict; FlushDeferredEditConditions compacts the map
+	 * on each invocation.
+	 */
+	TMap<TWeakObjectPtr<UGameSetting>, TArray<FAppliedEditConditionRecord>> AppliedEditConditions;
 };
 
 #undef UE_API

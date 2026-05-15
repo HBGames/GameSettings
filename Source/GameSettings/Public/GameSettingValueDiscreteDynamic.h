@@ -72,30 +72,6 @@ protected:
 };
 
 //////////////////////////////////////////////////////////////////////////
-// UGameSettingValueDiscreteDynamic_Bool
-//////////////////////////////////////////////////////////////////////////
-
-UCLASS(MinimalAPI)
-class UGameSettingValueDiscreteDynamic_Bool : public UGameSettingValueDiscreteDynamic
-{
-	GENERATED_BODY()
-
-public:
-	UE_API UGameSettingValueDiscreteDynamic_Bool();
-
-public:
-	UE_API void SetDefaultValue(bool Value);
-
-	UE_API void SetTrueText(const FText& InText);
-	UE_API void SetFalseText(const FText& InText);
-
-#if !UE_BUILD_SHIPPING
-	void SetTrueText(const FString& Value) { SetTrueText(FText::FromString(Value)); }
-	void SetFalseText(const FString& Value) { SetFalseText(FText::FromString(Value)); }
-#endif
-};
-
-//////////////////////////////////////////////////////////////////////////
 // UGameSettingValueDiscreteDynamic_Number
 //////////////////////////////////////////////////////////////////////////
 

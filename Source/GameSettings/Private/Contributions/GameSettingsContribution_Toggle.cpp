@@ -3,7 +3,7 @@
 #include "Contributions/GameSettingsContribution_Toggle.h"
 
 #include "GameSettingRegistry.h"
-#include "GameSettingValueDiscreteDynamic.h"
+#include "GameSettingValueBool.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -27,7 +27,7 @@ void UGameSettingsContribution_Toggle::Apply(UGameSettingRegistry& Registry, TAr
 		return;
 	}
 
-	UGameSettingValueDiscreteDynamic_Bool* Setting = NewObject<UGameSettingValueDiscreteDynamic_Bool>(&Registry);
+	UGameSettingValueBool* Setting = NewObject<UGameSettingValueBool>(&Registry);
 	ConfigureBaseSetting(*Setting);
 
 	if (TSharedPtr<FGameSettingDataSource> Getter = Binding.CreateGetter())
@@ -44,6 +44,7 @@ void UGameSettingsContribution_Toggle::Apply(UGameSettingRegistry& Registry, TAr
 	if (Handle.IsValid())
 	{
 		OutHandles.Add(Handle);
+		Registry.ApplyEditConditionSpecs(Setting, EditConditions);
 	}
 }
 

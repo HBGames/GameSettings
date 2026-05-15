@@ -9,10 +9,12 @@
 #include "GameSettingValueDiscrete.h"
 #include "GameSettingValueScalar.h"
 #include "GameSettingsSubsystem.h"
+#include "GameSettingValueBool.h"
 #include "ViewModels/GameSettingActionViewModel.h"
 #include "ViewModels/GameSettingCollectionViewModel.h"
 #include "ViewModels/GameSettingDiscreteViewModel.h"
 #include "ViewModels/GameSettingScalarViewModel.h"
+#include "ViewModels/GameSettingToggleViewModel.h"
 #include "ViewModels/GameSettingViewModel.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameSettingsScreenViewModel)
@@ -311,6 +313,10 @@ UGameSettingViewModel* UGameSettingsScreenViewModel::GetOrCreateViewModelFor(UGa
 TSubclassOf<UGameSettingViewModel> UGameSettingsScreenViewModel::ResolveViewModelClass(UGameSetting* Setting) const
 {
 	// Default mapping. Project subclasses can override per setting class.
+	// Bool is checked before Discrete (it's a peer type now, but listing it
+	// here is a reminder that toggles get their own VM rather than falling
+	// through to the option-list VM).
+	if (Cast<UGameSettingValueBool>(Setting))        return UGameSettingToggleViewModel::StaticClass();
 	if (Cast<UGameSettingValueScalar>(Setting))      return UGameSettingScalarViewModel::StaticClass();
 	if (Cast<UGameSettingValueDiscrete>(Setting))    return UGameSettingDiscreteViewModel::StaticClass();
 	if (Cast<UGameSettingAction>(Setting))           return UGameSettingActionViewModel::StaticClass();

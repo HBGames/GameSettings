@@ -2,8 +2,10 @@
 
 #include "GameSettingRegistry.h"
 
+#include "EditCondition/GameSettingEditConditionSpec.h"
 #include "GameSettingAction.h"
 #include "GameSettingCollection.h"
+#include "GameSettingFilterState.h"
 #include "GameSettingsLog.h"
 #include "UObject/WeakObjectPtr.h"
 
@@ -48,6 +50,28 @@ void UGameSettingRegistry::Regenerate()
 		}
 	}
 	DeferredPlacements.Reset();
+
+	// Surface orphaned edit conditions (referenced a target id no contribution
+	// ever provided - typo or unloaded GFP).
+	for (const FGameSettingDeferredEditCondition& Orphan : DeferredEditConditions)
+	{
+		if (UGameSetting* OrphanOwner = Orphan.Owner)
+		{
+			FString MissingList;
+			for (const FPrimaryAssetId& Id : Orphan.MissingTargets)
+			{
+				if (!MissingList.IsEmpty()) MissingList.Append(TEXT(", "));
+				MissingList.Append(Id.ToString());
+			}
+			UE_LOG(LogGameSettings, Warning,
+				TEXT("Regenerate: setting '%s' has an unresolved edit condition '%s' (missing targets: %s)."),
+				*OrphanOwner->GetSettingId().ToString(),
+				Orphan.Spec ? *Orphan.Spec->GetClass()->GetName() : TEXT("<null spec>"),
+				MissingList.IsEmpty() ? TEXT("<none>") : *MissingList);
+		}
+	}
+	DeferredEditConditions.Reset();
+	AppliedEditConditions.Reset();
 
 	for (UGameSetting* Setting : RegisteredSettings)
 	{
@@ -169,8 +193,10 @@ FGameSettingHandle UGameSettingRegistry::AddCollection(UGameSettingCollection* I
 		TopLevelSettings.Add(InCollection);
 	}
 
-	// The new collection might unblock previously-deferred children.
+	// The new collection might unblock previously-deferred children, and the
+	// new id may resolve a deferred edit condition that was waiting for it.
 	FlushDeferredPlacements();
+	FlushDeferredEditConditions();
 
 	OnStructureChangedEvent.Broadcast(this);
 	return NewHandle;
@@ -219,6 +245,9 @@ FGameSettingHandle UGameSettingRegistry::AddSetting(UGameSetting* InSetting, FPr
 		// No parent specified - top-level row.
 		TopLevelSettings.Add(InSetting);
 	}
+
+	// The new id may unblock a deferred edit condition that was waiting for it.
+	FlushDeferredEditConditions();
 
 	OnStructureChangedEvent.Broadcast(this);
 	return NewHandle;
@@ -427,6 +456,11 @@ int32 UGameSettingRegistry::UnregisterSettingTree(UGameSetting* InSetting)
 		PageCollection->OnExecuteNavigationEvent.RemoveAll(this);
 	}
 
+	// Drop any condition wires that pointed at this setting before its memory
+	// is reclaimed - prevents stale TWeakObjectPtr targets from sticking around
+	// in spec lambdas after a GameFeature unload.
+	CleanupEditConditionsForRemovedTarget(InSetting);
+
 	SettingsByHandle.Remove(InSetting->GetHandle());
 	RegisteredSettings.Remove(InSetting);
 
@@ -459,6 +493,209 @@ void UGameSettingRegistry::HandleSettingNamedAction(UGameSetting* Setting, FGame
 void UGameSettingRegistry::HandleSettingNavigation(UGameSetting* Setting)
 {
 	OnExecuteNavigationEvent.Broadcast(Setting);
+}
+
+// --- Edit-condition specs ---------------------------------------------
+
+void UGameSettingRegistry::ApplyEditConditionSpecs(UGameSetting* Owner,
+	const TArray<TObjectPtr<UGameSettingEditConditionSpec>>& Specs)
+{
+	if (!Owner || Specs.IsEmpty())
+	{
+		return;
+	}
+
+	TArray<FAppliedEditConditionRecord>& OwnerRecords = AppliedEditConditions.FindOrAdd(Owner);
+
+	for (const TObjectPtr<UGameSettingEditConditionSpec>& SpecPtr : Specs)
+	{
+		UGameSettingEditConditionSpec* Spec = SpecPtr.Get();
+		if (!Spec)
+		{
+			continue;
+		}
+
+		// Idempotent re-apply: skip if this exact spec object is already wired
+		// onto this owner. Hot-reload of a contribution that mutates the spec
+		// in place reads live data through the lambda; recreating the
+		// contribution drops the owner side first, so the map self-recovers.
+		const bool bAlreadyApplied = OwnerRecords.ContainsByPredicate(
+			[Spec](const FAppliedEditConditionRecord& Rec) { return Rec.Spec.Get() == Spec; });
+		if (bAlreadyApplied)
+		{
+			continue;
+		}
+
+		// Check every dependency target. Anything missing pushes onto the
+		// deferred queue rather than blocking install on the satisfied targets.
+		TArray<FPrimaryAssetId> DepIds;
+		Spec->GetSettingDependencies(DepIds);
+
+		TArray<FPrimaryAssetId> MissingTargets;
+		for (const FPrimaryAssetId& Id : DepIds)
+		{
+			if (Id.IsValid() && FindSettingById(Id) == nullptr)
+			{
+				MissingTargets.Add(Id);
+			}
+		}
+
+		if (MissingTargets.IsEmpty())
+		{
+			InstallSpec(Owner, Spec);
+		}
+		else
+		{
+			FGameSettingDeferredEditCondition Pending;
+			Pending.Owner          = Owner;
+			Pending.Spec           = Spec;
+			Pending.MissingTargets = MoveTemp(MissingTargets);
+			DeferredEditConditions.Add(MoveTemp(Pending));
+		}
+	}
+}
+
+void UGameSettingRegistry::InstallSpec(UGameSetting* Owner, UGameSettingEditConditionSpec* Spec)
+{
+	if (!Owner || !Spec)
+	{
+		return;
+	}
+
+	TSharedPtr<FGameSettingEditCondition> Condition = Spec->BuildCondition(*this, *Owner);
+	if (!Condition.IsValid())
+	{
+		// Spec opted out (rare; mostly defensive against BP subclasses).
+		return;
+	}
+
+	Owner->AddEditCondition(Condition.ToSharedRef());
+
+	FAppliedEditConditionRecord Record;
+	Record.Spec      = Spec;
+	Record.Condition = Condition;
+
+	TArray<FPrimaryAssetId> DepIds;
+	Spec->GetSettingDependencies(DepIds);
+	for (const FPrimaryAssetId& DepId : DepIds)
+	{
+		if (UGameSetting* DepSetting = FindSettingById(DepId))
+		{
+			Owner->AddEditDependency(DepSetting);
+			Record.Targets.Add(DepSetting);
+		}
+	}
+
+	AppliedEditConditions.FindOrAdd(Owner).Add(MoveTemp(Record));
+
+	// Recompute now so a setting applied after its targets doesn't sit at
+	// default-enabled until the user touches something. Notify subscribers so
+	// the view-model mirror picks up the new state.
+	Owner->RefreshEditableState(/*bNotifyEditConditionsChanged=*/true);
+}
+
+void UGameSettingRegistry::FlushDeferredEditConditions()
+{
+	if (DeferredEditConditions.IsEmpty() && AppliedEditConditions.IsEmpty())
+	{
+		return;
+	}
+
+	// Compact stale weak-key entries first so per-owner record arrays don't
+	// grow unbounded after repeated GFP unloads.
+	for (auto It = AppliedEditConditions.CreateIterator(); It; ++It)
+	{
+		if (!It.Key().IsValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	// Loop until quiescent: a freshly-installed spec may itself satisfy a
+	// later-queued spec's dependency through cascade effects.
+	bool bMadeProgress = true;
+	while (bMadeProgress)
+	{
+		bMadeProgress = false;
+		for (int32 Index = DeferredEditConditions.Num() - 1; Index >= 0; --Index)
+		{
+			FGameSettingDeferredEditCondition& Entry = DeferredEditConditions[Index];
+
+			Entry.MissingTargets.RemoveAll([this](const FPrimaryAssetId& Id)
+			{
+				return FindSettingById(Id) != nullptr;
+			});
+
+			if (!Entry.MissingTargets.IsEmpty())
+			{
+				continue;
+			}
+
+			UGameSetting* Owner = Entry.Owner;
+			UGameSettingEditConditionSpec* Spec = Entry.Spec;
+			DeferredEditConditions.RemoveAt(Index);
+
+			if (Owner && Spec)
+			{
+				InstallSpec(Owner, Spec);
+				bMadeProgress = true;
+			}
+		}
+	}
+}
+
+void UGameSettingRegistry::CleanupEditConditionsForRemovedTarget(UGameSetting* RemovedTarget)
+{
+	if (!RemovedTarget)
+	{
+		return;
+	}
+
+	// Drop any pending deferred entry pointing at this owner specifically -
+	// the owner is going away (recursive UnregisterSettingTree call) so its
+	// queued specs can't ever install. Owner-side targets are handled below.
+	DeferredEditConditions.RemoveAll([RemovedTarget](const FGameSettingDeferredEditCondition& Entry)
+	{
+		return Entry.Owner == RemovedTarget;
+	});
+
+	for (auto It = AppliedEditConditions.CreateIterator(); It; ++It)
+	{
+		UGameSetting* Owner = It.Key().Get();
+		if (!Owner)
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+
+		TArray<FAppliedEditConditionRecord>& Records = It.Value();
+		bool bOwnerNeedsRefresh = false;
+
+		for (int32 RecIndex = Records.Num() - 1; RecIndex >= 0; --RecIndex)
+		{
+			FAppliedEditConditionRecord& Record = Records[RecIndex];
+
+			const bool bTargetsRemoved = Record.Targets.RemoveAll(
+				[RemovedTarget](const TWeakObjectPtr<UGameSetting>& T) { return T.Get() == RemovedTarget; }) > 0;
+
+			if (bTargetsRemoved && Record.Condition.IsValid())
+			{
+				Owner->RemoveEditCondition(Record.Condition.ToSharedRef());
+				Records.RemoveAt(RecIndex);
+				bOwnerNeedsRefresh = true;
+			}
+		}
+
+		if (Records.IsEmpty())
+		{
+			It.RemoveCurrent();
+		}
+
+		if (bOwnerNeedsRefresh)
+		{
+			Owner->RefreshEditableState(/*bNotifyEditConditionsChanged=*/true);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
