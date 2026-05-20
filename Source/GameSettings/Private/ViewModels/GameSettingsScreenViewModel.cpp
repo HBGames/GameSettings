@@ -6,6 +6,7 @@
 #include "GameSettingAction.h"
 #include "GameSettingCollection.h"
 #include "GameSettingRegistry.h"
+#include "GameSettingValue.h"
 #include "GameSettingValueDiscrete.h"
 #include "GameSettingValueScalar.h"
 #include "GameSettingsSubsystem.h"
@@ -121,12 +122,36 @@ void UGameSettingsScreenViewModel::Apply()
 	}
 	ChangeTracker.ClearDirtyState();
 	RefreshDirtyState();
+	RefreshResetState();
 }
 
 void UGameSettingsScreenViewModel::Cancel()
 {
 	ChangeTracker.RestoreToInitial();
 	RefreshDirtyState();
+	RefreshResetState();
+}
+
+void UGameSettingsScreenViewModel::ResetToDefaults()
+{
+	// Reset the visible settings on the current tab. Each ResetToDefault
+	// fires OnSettingChangedEvent, which the change tracker turns into a
+	// dirty entry - so the user still has to Apply to persist, or Cancel to
+	// roll the reset back. Matches Lyra's reset-then-confirm behaviour.
+	for (UGameSettingViewModel* VM : VisibleSettings)
+	{
+		if (!VM)
+		{
+			continue;
+		}
+		if (UGameSettingValue* SettingValue = Cast<UGameSettingValue>(VM->GetSetting()))
+		{
+			SettingValue->ResetToDefault();
+		}
+	}
+
+	RefreshDirtyState();
+	RefreshResetState();
 }
 
 void UGameSettingsScreenViewModel::NavigateToTabById(FPrimaryAssetId TabId)
@@ -232,6 +257,26 @@ void UGameSettingsScreenViewModel::RebuildTabs()
 		}
 	}
 
+	// Order tabs deterministically by their setting's SortPriority, SettingId
+	// tiebreak - same contract as UGameSettingCollection child ordering, so
+	// tab order doesn't depend on asset-discovery arrival order.
+	Tabs.StableSort([](const UGameSettingViewModel& A, const UGameSettingViewModel& B)
+	{
+		const UGameSetting* SettingA = A.GetSetting();
+		const UGameSetting* SettingB = B.GetSetting();
+		if (!SettingA || !SettingB)
+		{
+			return SettingA != nullptr;
+		}
+		const int32 PriorityA = SettingA->GetSortPriority();
+		const int32 PriorityB = SettingB->GetSortPriority();
+		if (PriorityA != PriorityB)
+		{
+			return PriorityA < PriorityB;
+		}
+		return SettingA->GetSettingId().ToString() < SettingB->GetSettingId().ToString();
+	});
+
 	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetTabs);
 
 	// Default focus the first tab if nothing's selected.
@@ -270,6 +315,10 @@ void UGameSettingsScreenViewModel::RebuildVisibleSettings()
 	}
 
 	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetVisibleSettings);
+
+	// The visible set drives reset eligibility; recompute against the new list
+	// (e.g. tab swap may surface settings that are off their defaults).
+	RefreshResetState();
 }
 
 void UGameSettingsScreenViewModel::RefreshDirtyState()
@@ -280,6 +329,32 @@ void UGameSettingsScreenViewModel::RefreshDirtyState()
 		bIsDirty = bNewDirty;
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(IsDirty);
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(CanApply);
+	}
+}
+
+void UGameSettingsScreenViewModel::RefreshResetState()
+{
+	bool bNewCanReset = false;
+	for (const UGameSettingViewModel* VM : VisibleSettings)
+	{
+		if (!VM)
+		{
+			continue;
+		}
+		if (const UGameSettingValue* SettingValue = Cast<UGameSettingValue>(VM->GetSetting()))
+		{
+			if (SettingValue->IsResettableToDefault())
+			{
+				bNewCanReset = true;
+				break;
+			}
+		}
+	}
+
+	if (bCanResetToDefaults != bNewCanReset)
+	{
+		bCanResetToDefaults = bNewCanReset;
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(CanResetToDefaults);
 	}
 }
 
@@ -342,4 +417,5 @@ void UGameSettingsScreenViewModel::HandleSettingChanged(UGameSetting* /*Setting*
 {
 	// Tracker has already updated; re-broadcast our IsDirty if it flipped.
 	RefreshDirtyState();
+	RefreshResetState();
 }

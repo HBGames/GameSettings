@@ -92,6 +92,19 @@ struct FGameSettingsBinding
 	/** Build a setter data source. Returns null if the binding is invalid. */
 	UE_API TSharedPtr<FGameSettingDataSource> CreateSetter() const;
 
+	/**
+	 * Read the C++-declared default by invoking the getter on TargetClass's
+	 * CDO (not the live instance, not the ini-loaded value). This is the
+	 * factory default a Reset-To-Default should restore to. Returns false if
+	 * the class can't load or the getter doesn't resolve.
+	 *
+	 * Meaningful for UGameUserSettings / ULocalPlayerSaveGame targets whose
+	 * CDO carries real member initializers. For USubsystem targets the CDO is
+	 * rarely configured, so the caller should treat a false return (or an
+	 * unexpected value) as "fall back to the explicit default field."
+	 */
+	UE_API bool TryGetClassDefaultValueAsString(FString& OutValue) const;
+
 #if WITH_EDITOR
 	/**
 	 * Editor-time validation. Pass an asset name for prefixing error messages.

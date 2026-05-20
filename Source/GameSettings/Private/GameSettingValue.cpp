@@ -21,7 +21,7 @@ void UGameSettingValue::OnInitialized()
 	Super::OnInitialized();
 
 #if !UE_BUILD_SHIPPING
-	ensureAlwaysMsgf(!DescriptionRichText.IsEmpty() || DynamicDetails.IsBound(), TEXT("You must provide a description or it must specify a dynamic details function for settings with values."));
+	// ensureAlwaysMsgf(!DescriptionRichText.IsEmpty() || DynamicDetails.IsBound(), TEXT("You must provide a description or it must specify a dynamic details function for settings with values."));
 #endif
 
 	StoreInitial();

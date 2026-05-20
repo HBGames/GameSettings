@@ -33,6 +33,8 @@ public:
 	UE_API virtual FString GetValueAsString(ULocalPlayer* InLocalPlayer) const override;
 	UE_API virtual void SetValue(ULocalPlayer* InLocalPlayer, const FString& Value) override;
 	UE_API virtual FString ToString() const override;
+	UE_API virtual void Persist(ULocalPlayer* InLocalPlayer) override;
+	UE_API virtual FString GetPersistKey() const override;
 
 private:
 	UE_API ULocalPlayerSaveGame* ResolveSaveGame(ULocalPlayer* InLocalPlayer) const;

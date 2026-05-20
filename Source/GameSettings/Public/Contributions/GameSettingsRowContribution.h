@@ -35,7 +35,8 @@ public:
 	 * name keep this reference live across asset moves and the rename from
 	 * the pre-Section naming.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Identity", meta = (AllowedTypes = "GameSettingsTab,GameSettingsSection"))
+	UPROPERTY(EditAnywhere, Category = "Display",
+		meta = (AllowedTypes = "GameSettingsTab,GameSettingsSection", DisplayPriority = 20))
 	FPrimaryAssetId ParentContainer;
 };
 

@@ -42,7 +42,16 @@ class UGameSettingsContribution_Scalar : public UGameSettingsRowContribution
 {
 	GENERATED_BODY()
 public:
+	/**
+	 * When true (default), Reset-To-Default uses the value the binding's getter
+	 * returns on TargetClass's CDO - the C++-declared property default. Uncheck
+	 * to use DefaultValue as an explicit override.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Value")
+	bool bUseClassDefaultValue = true;
+
+	/** Explicit Reset-To-Default value. Only used when bUseClassDefaultValue is false. */
+	UPROPERTY(EditAnywhere, Category = "Value", meta = (EditCondition = "!bUseClassDefaultValue"))
 	double DefaultValue = 0.0;
 
 	/** The full source range the slider can move across. */

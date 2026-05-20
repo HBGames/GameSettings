@@ -20,6 +20,9 @@ public class GameSettings : ModuleRules
 				"UMG",
 				"CommonInput",
 				"CommonUI",
+				// UInputAction appears in GameSettingsView.h (public) as a
+				// UPROPERTY for the Apply / Reset bound-action input actions.
+				"EnhancedInput",
 				"GameplayTags",
 				// DeveloperSettings is part of the public surface:
 				// GameSettingsDeveloperSettings.h is a public header.
@@ -40,6 +43,10 @@ public class GameSettings : ModuleRules
 			{
 				"ApplicationCore",
 				"AssetRegistry",
+				// CommonGame: GameSettingsView.cpp routes Back-with-unsaved-changes
+				// through UCommonMessagingSubsystem::ShowConfirmation. cpp-only,
+				// so it stays private.
+				"CommonGame",
 			}
 		);
 	}

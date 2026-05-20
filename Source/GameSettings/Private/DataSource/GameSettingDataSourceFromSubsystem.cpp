@@ -70,6 +70,31 @@ FString FGameSettingDataSourceFromSubsystem::ToString() const
 		*PropertyPath.ToString());
 }
 
+void FGameSettingDataSourceFromSubsystem::Persist(ULocalPlayer* InLocalPlayer)
+{
+	USubsystem* Subsystem = ResolveSubsystem(InLocalPlayer);
+	if (!Subsystem)
+	{
+		return;
+	}
+
+	// Generic best-effort flush. If the subsystem declares UPROPERTY(Config)
+	// members this writes them to the relevant ini; if not it's a harmless
+	// no-op. Subsystems that persist through some other mechanism (a backend,
+	// a save game) should expose their own save and not rely on this - same
+	// contract Lyra implies by only auto-saving its known settings classes.
+	Subsystem->SaveConfig();
+}
+
+FString FGameSettingDataSourceFromSubsystem::GetPersistKey() const
+{
+	// One flush per subsystem class. Different subsystem families
+	// (LocalPlayer/GameInstance/World/Engine) are distinct classes so this
+	// keys them apart naturally.
+	return FString::Printf(TEXT("Subsystem:%s"),
+		SubsystemClass ? *SubsystemClass->GetName() : TEXT("(null)"));
+}
+
 USubsystem* FGameSettingDataSourceFromSubsystem::ResolveSubsystem(ULocalPlayer* InLocalPlayer) const
 {
 	UClass* SubClass = SubsystemClass.Get();

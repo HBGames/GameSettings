@@ -38,7 +38,16 @@ void UGameSettingsContribution_Toggle::Apply(UGameSettingRegistry& Registry, TAr
 	{
 		Setting->SetDynamicSetter(Setter.ToSharedRef());
 	}
-	Setting->SetDefaultValue(bDefaultValue);
+	bool EffectiveDefault = bDefaultValue;
+	if (bUseClassDefaultValue)
+	{
+		FString ClassDefaultStr;
+		if (Binding.TryGetClassDefaultValueAsString(ClassDefaultStr))
+		{
+			LexFromString(EffectiveDefault, *ClassDefaultStr);
+		}
+	}
+	Setting->SetDefaultValue(EffectiveDefault);
 
 	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentContainer);
 	if (Handle.IsValid())

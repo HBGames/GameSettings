@@ -61,7 +61,24 @@ TArray<UGameSettingCollection*> UGameSettingCollection::GetChildCollections() co
 
 void UGameSettingCollection::GetSettingsForFilter(const FGameSettingFilterState& FilterState, TArray<UGameSetting*>& InOutSettings) const
 {
-	for (UGameSetting* ChildSetting : Settings)
+	// Emit children in deterministic order: SortPriority ascending, then
+	// SettingId as a stable tiebreak so equal-priority siblings don't depend
+	// on asset-discovery arrival order (which is non-deterministic). Sorting
+	// at emit time rather than mutating Settings keeps deferred re-parenting
+	// simple and treats ordering as the read-time concern it is.
+	TArray<UGameSetting*> SortedSettings = Settings;
+	SortedSettings.StableSort([](const UGameSetting& A, const UGameSetting& B)
+	{
+		const int32 PriorityA = A.GetSortPriority();
+		const int32 PriorityB = B.GetSortPriority();
+		if (PriorityA != PriorityB)
+		{
+			return PriorityA < PriorityB;
+		}
+		return A.GetSettingId().ToString() < B.GetSettingId().ToString();
+	});
+
+	for (UGameSetting* ChildSetting : SortedSettings)
 	{
 		// If the child setting is a collection, only add it to the set if it has any visible children.
 		if (Cast<UGameSettingCollectionPage>(ChildSetting))

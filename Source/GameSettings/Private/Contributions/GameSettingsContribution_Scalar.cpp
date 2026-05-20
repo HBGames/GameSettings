@@ -57,7 +57,16 @@ void UGameSettingsContribution_Scalar::Apply(UGameSettingRegistry& Registry, TAr
 	{
 		Setting->SetDynamicSetter(Setter.ToSharedRef());
 	}
-	Setting->SetDefaultValue(DefaultValue);
+	double EffectiveDefault = DefaultValue;
+	if (bUseClassDefaultValue)
+	{
+		FString ClassDefaultStr;
+		if (Binding.TryGetClassDefaultValueAsString(ClassDefaultStr))
+		{
+			LexFromString(EffectiveDefault, *ClassDefaultStr);
+		}
+	}
+	Setting->SetDefaultValue(EffectiveDefault);
 	Setting->SetSourceRangeAndStep(TRange<double>(SourceRange.X, SourceRange.Y), SourceStep);
 	if (MinimumLimit.IsSet()) Setting->SetMinimumLimit(MinimumLimit.GetValue());
 	if (MaximumLimit.IsSet()) Setting->SetMaximumLimit(MaximumLimit.GetValue());

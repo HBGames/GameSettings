@@ -84,6 +84,15 @@ bool UGameSettingValueDiscreteDynamic::AreOptionsEqual(const FString& InOptionA,
 	return InOptionA == InOptionB;
 }
 
+bool UGameSettingValueDiscreteDynamic::IsResettableToDefault() const
+{
+	if (!DefaultValue.IsSet())
+	{
+		return false;
+	}
+	return !AreOptionsEqual(GetValueAsString(), DefaultValue.GetValue());
+}
+
 void UGameSettingValueDiscreteDynamic::OnInitialized()
 {
 #if !UE_BUILD_SHIPPING

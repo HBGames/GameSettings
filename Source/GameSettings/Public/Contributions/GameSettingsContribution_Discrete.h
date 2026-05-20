@@ -38,8 +38,16 @@ class UGameSettingsContribution_Discrete : public UGameSettingsRowContribution
 {
 	GENERATED_BODY()
 public:
-	/** Default option's stored value. Must match one of the entries in Options. */
+	/**
+	 * When true (default), Reset-To-Default uses the value the binding's getter
+	 * returns on TargetClass's CDO - the C++-declared property default. Uncheck
+	 * to use DefaultValue as an explicit override.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Value")
+	bool bUseClassDefaultValue = true;
+
+	/** Explicit Reset-To-Default option value. Must match one of Options. Only used when bUseClassDefaultValue is false. */
+	UPROPERTY(EditAnywhere, Category = "Value", meta = (EditCondition = "!bUseClassDefaultValue"))
 	FString DefaultValue;
 
 	/** Static option list. Ignored when OptionsProvider is set or when SettingClass self-manages. */
@@ -71,6 +79,13 @@ public:
 
 #if WITH_EDITOR
 	UE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+
+	/**
+	 * A custom (non-default) SettingClass takes over the value entirely and
+	 * self-manages options, so the binding / options / class-default fields
+	 * are meaningless then - grey them out in the details panel.
+	 */
+	UE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 
 	static UE_API const FPrimaryAssetType ContributionPrimaryAssetType;

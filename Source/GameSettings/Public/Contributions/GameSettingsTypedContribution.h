@@ -26,12 +26,23 @@ class UGameSettingsTypedContribution : public UGameSettingsContribution
 	GENERATED_BODY()
 public:
 	/** Localized name shown in the settings list. Required. */
-	UPROPERTY(EditAnywhere, Category = "Display")
+	UPROPERTY(EditAnywhere, Category = "Display", meta = (DisplayPriority = 1))
 	FText DisplayName;
 
 	/** Rich-text description shown in the detail panel. Optional. */
-	UPROPERTY(EditAnywhere, Category = "Display", DisplayName = "Description", meta = (MultiLine = "true"))
+	UPROPERTY(EditAnywhere, Category = "Display", DisplayName = "Description", meta = (MultiLine = "true", DisplayPriority = 2))
 	FText DescriptionRichText;
+
+	/**
+	 * Render order within the parent container (tab or section). Lower values
+	 * appear first. Siblings with equal SortPriority fall back to a stable
+	 * SettingId tiebreak so order is deterministic across runs regardless of
+	 * asset-discovery arrival order. Tabs are ordered among themselves by the
+	 * same field. Leave at 0 and stride later entries (10, 20, 30) so you can
+	 * insert between without renumbering.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Display", meta = (DisplayPriority = 3))
+	int32 SortPriority = 0;
 
 	/**
 	 * Edit-condition specs applied to the runtime setting at registration

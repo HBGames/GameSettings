@@ -52,6 +52,15 @@ void UGameSettingValueBool::SetBoolValueWithReason(bool InValue, EGameSettingCha
 	NotifySettingChanged(Reason);
 }
 
+bool UGameSettingValueBool::IsResettableToDefault() const
+{
+	if (!DefaultValue.IsSet())
+	{
+		return false;
+	}
+	return GetBoolValue() != DefaultValue.GetValue();
+}
+
 void UGameSettingValueBool::OnInitialized()
 {
 #if !UE_BUILD_SHIPPING

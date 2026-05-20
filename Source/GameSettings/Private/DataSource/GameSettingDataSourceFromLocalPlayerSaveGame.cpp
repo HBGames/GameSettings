@@ -146,6 +146,29 @@ FString FGameSettingDataSourceFromLocalPlayerSaveGame::ToString() const
 		*PropertyPath.ToString());
 }
 
+void FGameSettingDataSourceFromLocalPlayerSaveGame::Persist(ULocalPlayer* InLocalPlayer)
+{
+	ULocalPlayerSaveGame* SaveGame = ResolveSaveGame(InLocalPlayer);
+	if (!SaveGame)
+	{
+		return;
+	}
+
+	// Async save to the player's slot - identical to Lyra's
+	// ULyraSettingsShared::SaveSettings (AsyncSaveGameToSlotForLocalPlayer).
+	// Async is intentional: a failed settings save is non-fatal.
+	SaveGame->AsyncSaveGameToSlotForLocalPlayer();
+}
+
+FString FGameSettingDataSourceFromLocalPlayerSaveGame::GetPersistKey() const
+{
+	// One save per (class, slot). Different slots are different files, so they
+	// must each get their own save pass.
+	return FString::Printf(TEXT("SaveGame:%s:%s"),
+		SaveGameClass ? *SaveGameClass->GetName() : TEXT("(null)"),
+		*SlotName);
+}
+
 ULocalPlayerSaveGame* FGameSettingDataSourceFromLocalPlayerSaveGame::ResolveSaveGame(ULocalPlayer* InLocalPlayer) const
 {
 	if (!InLocalPlayer || !SaveGameClass)

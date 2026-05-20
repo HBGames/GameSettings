@@ -205,6 +205,21 @@ void UGameSettingValueScalarDynamic::SetValue(double InValue, EGameSettingChange
 	NotifySettingChanged(Reason);
 }
 
+bool UGameSettingValueScalarDynamic::IsResettableToDefault() const
+{
+	if (!DefaultValue.IsSet())
+	{
+		return false;
+	}
+	// Compare in source units, snapped to the same step the setter would apply,
+	// so a default that isn't on a step boundary doesn't read as perpetually
+	// non-default. KINDA_SMALL_NUMBER matches the tolerance the scalar VM uses
+	// to absorb float<->double round-trip noise from the slider binding.
+	const double Current = GetValue();
+	const double Default = DefaultValue.GetValue();
+	return !FMath::IsNearlyEqual(Current, Default, KINDA_SMALL_NUMBER);
+}
+
 FText UGameSettingValueScalarDynamic::GetFormattedText() const
 {
 	const double SourceValue = GetValue();

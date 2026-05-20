@@ -55,6 +55,19 @@ public:
 	UFUNCTION(BlueprintCallable, FieldNotify, Category = "State")
 	bool CanApply() const { return bIsDirty; }
 
+	/**
+	 * Whether the Reset-To-Default action should be offered. Deliberately
+	 * decoupled from dirty state: it's true whenever any visible setting's
+	 * value differs from its configured default, and false otherwise. That
+	 * means a fresh-but-non-default screen still offers a reset, and the
+	 * prompt disappears the instant a reset lands - even though the change
+	 * tracker still treats the reset as a pending change (so Apply stays up
+	 * to persist it, or Cancel to revert). Cached and refreshed via
+	 * RefreshResetState so the FieldNotify getter stays cheap.
+	 */
+	UFUNCTION(BlueprintCallable, FieldNotify, Category = "State")
+	bool CanResetToDefaults() const { return bCanResetToDefaults; }
+
 	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Navigation")
 	bool CanPopNavigation() const { return FilterNavigationStack.Num() > 0; }
 
@@ -74,6 +87,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Action")
 	UE_API void Cancel();
+
+	/**
+	 * Reset every visible setting on the current tab to its default value.
+	 * Each reset fires a change so the change tracker marks them dirty;
+	 * the user still has to Apply to persist (or Cancel to revert the
+	 * reset), matching Lyra's reset-then-confirm flow.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Action")
+	UE_API void ResetToDefaults();
 
 	UFUNCTION(BlueprintCallable, Category = "Navigation")
 	UE_API void NavigateToTabById(FPrimaryAssetId TabId);
@@ -96,6 +118,13 @@ private:
 	UE_API void RebuildTabs();
 	UE_API void RebuildVisibleSettings();
 	UE_API void RefreshDirtyState();
+
+	/**
+	 * Recompute "any visible setting differs from its default" and broadcast
+	 * CanResetToDefaults if it flipped. Independent of dirty tracking - call
+	 * after anything that can change a value or the visible set.
+	 */
+	UE_API void RefreshResetState();
 
 	UE_API void HandleStructureChanged(UGameSettingRegistry* Registry);
 	UE_API void HandleSettingChanged(UGameSetting* Setting, EGameSettingChangeReason Reason);
@@ -132,6 +161,9 @@ private:
 	TArray<TObjectPtr<UGameSettingViewModel>> AllViewModels;
 
 	bool bIsDirty = false;
+
+	/** Cached "any visible setting differs from default", maintained by RefreshResetState. */
+	bool bCanResetToDefaults = false;
 };
 
 #undef UE_API

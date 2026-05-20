@@ -2,10 +2,12 @@
 
 #include "GameSettingRegistry.h"
 
+#include "DataSource/GameSettingDataSource.h"
 #include "EditCondition/GameSettingEditConditionSpec.h"
 #include "GameSettingAction.h"
 #include "GameSettingCollection.h"
 #include "GameSettingFilterState.h"
+#include "GameSettingValue.h"
 #include "GameSettingsLog.h"
 #include "UObject/WeakObjectPtr.h"
 
@@ -25,6 +27,24 @@ void UGameSettingRegistry::Initialize(ULocalPlayer* InLocalPlayer)
 {
 	OwningLocalPlayer = InLocalPlayer;
 	OnInitialize(InLocalPlayer);
+
+	// Any settings registered before we learned our LocalPlayer (e.g.
+	// contributions applied prior to this call) never got Initialize() - and
+	// therefore never ran Startup()/OnInitialized(). Catch them up now.
+	// UGameSetting::Initialize early-returns when the LocalPlayer already
+	// matches, so this is idempotent for anything WireSettingTree already did.
+	if (InLocalPlayer)
+	{
+		// Copy: Initialize can mutate the tree (child init / deferred flushes).
+		TArray<TObjectPtr<UGameSetting>> SettingsSnapshot = RegisteredSettings;
+		for (UGameSetting* Setting : SettingsSnapshot)
+		{
+			if (Setting)
+			{
+				Setting->Initialize(InLocalPlayer);
+			}
+		}
+	}
 }
 
 void UGameSettingRegistry::OnInitialize(ULocalPlayer* InLocalPlayer)
@@ -103,6 +123,46 @@ bool UGameSettingRegistry::IsFinishedInitializing() const
 
 void UGameSettingRegistry::SaveChanges()
 {
+	ULocalPlayer* LP = OwningLocalPlayer;
+
+	// Collect the distinct backing stores referenced by any registered value
+	// setting and flush each exactly once. De-dup by GetPersistKey so e.g.
+	// every GameUserSettings-bound setting collapses into a single
+	// ApplySettings call rather than one per setting.
+	//
+	// Note this persists the whole store, not just the dirty subset - the same
+	// behaviour as Lyra's ULyraGameSettingRegistry::SaveChanges, which calls
+	// ApplySettings on the entire LocalSettings / SharedSettings objects. By
+	// the time this runs the change tracker has already cleared its dirty set
+	// anyway, so a per-store flush is both correct and Lyra-faithful.
+	TMap<FString, TSharedPtr<FGameSettingDataSource>> StoresToPersist;
+	for (UGameSetting* Setting : RegisteredSettings)
+	{
+		UGameSettingValue* Value = Cast<UGameSettingValue>(Setting);
+		if (!Value)
+		{
+			continue;
+		}
+
+		TSharedPtr<FGameSettingDataSource> DataSource = Value->GetPersistableDataSource();
+		if (!DataSource.IsValid())
+		{
+			continue;
+		}
+
+		const FString Key = DataSource->GetPersistKey();
+		if (Key.IsEmpty())
+		{
+			continue;
+		}
+
+		StoresToPersist.FindOrAdd(Key) = DataSource;
+	}
+
+	for (const TPair<FString, TSharedPtr<FGameSettingDataSource>>& Pair : StoresToPersist)
+	{
+		Pair.Value->Persist(LP);
+	}
 }
 
 void UGameSettingRegistry::GetSettingsForFilter(const FGameSettingFilterState& FilterState, TArray<UGameSetting*>& InOutSettings)
@@ -395,6 +455,23 @@ void UGameSettingRegistry::WireSettingTree(UGameSetting* InSetting)
 	else if (UGameSettingCollectionPage* NewPageCollection = Cast<UGameSettingCollectionPage>(InSetting))
 	{
 		NewPageCollection->OnExecuteNavigationEvent.AddUObject(this, &ThisClass::HandleSettingNavigation);
+	}
+
+	// Drive the setting's lifecycle here, the moment it joins the registry,
+	// rather than relying on a parent collection already having a LocalPlayer
+	// (the contribution model never seeds that the way Lyra's hand-built
+	// registries do via Screen->Initialize before AddSetting). Without this,
+	// Startup()/OnInitialized() never run for contribution settings - harmless
+	// for the ones whose options/values come from Apply or a lazy getter, but
+	// fatal for settings that build their state in OnInitialized (e.g. the
+	// language picker enumerating cultures). Contribution Apply fully
+	// configures the setting (getter/setter/default/options) before calling
+	// AddSetting, so the data sources are ready by the time we get here.
+	// Idempotent: UGameSetting::Initialize early-returns once the LocalPlayer
+	// matches, so the later parent-collection AddSetting cascade is a no-op.
+	if (OwningLocalPlayer)
+	{
+		InSetting->Initialize(OwningLocalPlayer);
 	}
 
 	// Soft collision policy: warn instead of crashing in shipping. A duplicate

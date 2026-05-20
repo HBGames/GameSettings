@@ -19,8 +19,17 @@ class UGameSettingsContribution_Toggle : public UGameSettingsRowContribution
 {
 	GENERATED_BODY()
 public:
-	/** Default value if the user resets to default. */
+	/**
+	 * When true (default), Reset-To-Default uses the value the binding's getter
+	 * returns on TargetClass's CDO - i.e. the C++-declared property default, so
+	 * it can't silently drift from the explicit field below. Uncheck to use
+	 * bDefaultValue as an explicit override.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Value")
+	bool bUseClassDefaultValue = true;
+
+	/** Explicit Reset-To-Default value. Only used when bUseClassDefaultValue is false. */
+	UPROPERTY(EditAnywhere, Category = "Value", meta = (EditCondition = "!bUseClassDefaultValue"))
 	bool bDefaultValue = false;
 
 	UPROPERTY(EditAnywhere, Category = "Value")

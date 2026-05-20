@@ -33,7 +33,8 @@ class UGameSettingRegistry;
  * keeps those handles and removes by handle on teardown; that's how the
  * system avoids leaks across plugin unload.
  */
-UCLASS(MinimalAPI, BlueprintType, Abstract)
+UCLASS(MinimalAPI, BlueprintType, Abstract,
+	PrioritizeCategories = ("Display", "Value", "Binding", "Edit Conditions", "Registration"))
 class UGameSettingsContribution : public UPrimaryDataAsset
 {
 	GENERATED_BODY()

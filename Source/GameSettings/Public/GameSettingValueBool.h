@@ -36,6 +36,8 @@ public:
 	UE_API virtual void StoreInitial() override;
 	UE_API virtual void ResetToDefault() override;
 	UE_API virtual void RestoreToInitial() override;
+	UE_API virtual bool IsResettableToDefault() const override;
+	virtual TSharedPtr<FGameSettingDataSource> GetPersistableDataSource() const override { return Setter; }
 	//~ End UGameSettingValue
 
 	/** Bind a getter that returns bool (typically a UFUNCTION on the project's settings class). */

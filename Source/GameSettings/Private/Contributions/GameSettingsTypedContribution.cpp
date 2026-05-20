@@ -27,6 +27,7 @@ void UGameSettingsTypedContribution::ConfigureBaseSetting(UGameSetting& Setting)
 	{
 		Setting.SetDescriptionRichText(DescriptionRichText);
 	}
+	Setting.SetSortPriority(SortPriority);
 }
 
 #if WITH_EDITOR

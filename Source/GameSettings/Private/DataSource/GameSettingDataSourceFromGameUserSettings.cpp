@@ -63,6 +63,29 @@ FString FGameSettingDataSourceFromGameUserSettings::ToString() const
 		*PropertyPath.ToString());
 }
 
+void FGameSettingDataSourceFromGameUserSettings::Persist(ULocalPlayer* InLocalPlayer)
+{
+	UGameUserSettings* Settings = ResolveGameUserSettings();
+	if (!Settings)
+	{
+		return;
+	}
+
+	// ApplySettings applies hardware-affecting settings (resolution, vsync,
+	// scalability) AND writes GameUserSettings.ini via SaveSettings. This is
+	// exactly what Lyra's ULyraGameSettingRegistry::SaveChanges does for its
+	// local settings. bCheckForCommandLineOverrides = false matches Lyra.
+	Settings->ApplySettings(false);
+}
+
+FString FGameSettingDataSourceFromGameUserSettings::GetPersistKey() const
+{
+	// One engine-global GameUserSettings object regardless of which subclass
+	// the binding declared, so a single fixed key collapses every
+	// GameUserSettings-bound setting into one ApplySettings call.
+	return TEXT("GameUserSettings");
+}
+
 UGameUserSettings* FGameSettingDataSourceFromGameUserSettings::ResolveGameUserSettings() const
 {
 	if (!GEngine)

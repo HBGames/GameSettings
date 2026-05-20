@@ -7,6 +7,7 @@
 #include "DataSource/GameSettingDataSourceFromSubsystem.h"
 #include "GameFramework/GameUserSettings.h"
 #include "GameFramework/SaveGame.h"
+#include "PropertyPathHelpers.h"
 #include "Subsystems/Subsystem.h"
 
 #if WITH_EDITOR
@@ -107,6 +108,26 @@ TSharedPtr<FGameSettingDataSource> FGameSettingsBinding::CreateSetter() const
 		return nullptr;
 	}
 	return CreateDataSource(Loaded, SetterFunctionName, SaveGameSlotName);
+}
+
+bool FGameSettingsBinding::TryGetClassDefaultValueAsString(FString& OutValue) const
+{
+	UClass* Loaded = TryLoadTargetClass(TargetClass);
+	if (!Loaded || GetterFunctionName.IsNone())
+	{
+		return false;
+	}
+
+	// The CDO carries the C++-declared member initializers - the true factory
+	// default - independent of the live instance or any ini load. Running the
+	// getter against it gives the value a Reset-To-Default should restore.
+	UObject* CDO = Loaded->GetDefaultObject();
+	if (!CDO)
+	{
+		return false;
+	}
+
+	return PropertyPathHelpers::GetPropertyValueAsString(CDO, GetterFunctionName.ToString(), OutValue);
 }
 
 #if WITH_EDITOR

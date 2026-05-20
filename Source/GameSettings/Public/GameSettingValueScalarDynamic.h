@@ -44,6 +44,8 @@ public:
 	UE_API virtual void StoreInitial() override;
 	UE_API virtual void ResetToDefault() override;
 	UE_API virtual void RestoreToInitial() override;
+	UE_API virtual bool IsResettableToDefault() const override;
+	virtual TSharedPtr<FGameSettingDataSource> GetPersistableDataSource() const override { return Setter; }
 
 	/** UGameSettingValueScalar */
 	UE_API virtual TOptional<double> GetDefaultValue() const override;

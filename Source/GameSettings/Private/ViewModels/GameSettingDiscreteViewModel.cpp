@@ -33,6 +33,30 @@ void UGameSettingDiscreteViewModel::SetSelectedIndex(int32 NewIndex)
 	}
 }
 
+void UGameSettingDiscreteViewModel::SelectNextOption()
+{
+	const int32 Count = Options.Num();
+	if (Count < 2)
+	{
+		return;
+	}
+	// SelectedIndex can be INDEX_NONE before the first RefreshFromSetting;
+	// treat that as "before 0" so the first Next lands on 0.
+	const int32 Current = (SelectedIndex >= 0 && SelectedIndex < Count) ? SelectedIndex : Count - 1;
+	SetSelectedIndex((Current + 1) % Count);
+}
+
+void UGameSettingDiscreteViewModel::SelectPreviousOption()
+{
+	const int32 Count = Options.Num();
+	if (Count < 2)
+	{
+		return;
+	}
+	const int32 Current = (SelectedIndex >= 0 && SelectedIndex < Count) ? SelectedIndex : 0;
+	SetSelectedIndex((Current - 1 + Count) % Count);
+}
+
 void UGameSettingDiscreteViewModel::RefreshFromSetting()
 {
 	Super::RefreshFromSetting();

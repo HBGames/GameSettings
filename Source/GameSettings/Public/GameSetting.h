@@ -60,6 +60,14 @@ public:
 	 */
 	FGameSettingHandle GetHandle() const { return Handle; }
 
+	/**
+	 * Render order within the parent container. Lower sorts first. Copied from
+	 * the contribution's SortPriority at registration. Collections emit their
+	 * children sorted by this (tiebroken by SettingId for determinism).
+	 */
+	int32 GetSortPriority() const { return SortPriority; }
+	void SetSortPriority(int32 InValue) { SortPriority = InValue; }
+
 	bool GetAdjustListViewPostRefresh() const { return bAdjustListViewPostRefresh; }
 	void SetAdjustListViewPostRefresh(const bool Value) { bAdjustListViewPostRefresh = Value; }
 
@@ -226,6 +234,7 @@ protected:
 
 	FPrimaryAssetId SettingId;
 	FGameSettingHandle Handle;
+	int32 SortPriority = 0;
 	FText DisplayName;
 	ESlateVisibility DisplayNameVisibility = ESlateVisibility::SelfHitTestInvisible;
 	FText DescriptionRichText;

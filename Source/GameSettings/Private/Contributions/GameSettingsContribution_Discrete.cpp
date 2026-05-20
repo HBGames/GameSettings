@@ -59,9 +59,18 @@ void UGameSettingsContribution_Discrete::Apply(UGameSettingRegistry& Registry, T
 			Setting->SetDynamicSetter(Setter.ToSharedRef());
 		}
 	}
-	if (!DefaultValue.IsEmpty())
+	FString EffectiveDefault = DefaultValue;
+	if (bUseClassDefaultValue)
 	{
-		Setting->SetDefaultValueFromString(DefaultValue);
+		FString ClassDefaultStr;
+		if (Binding.TryGetClassDefaultValueAsString(ClassDefaultStr))
+		{
+			EffectiveDefault = ClassDefaultStr;
+		}
+	}
+	if (!EffectiveDefault.IsEmpty())
+	{
+		Setting->SetDefaultValueFromString(EffectiveDefault);
 	}
 
 	// Options. Custom setting classes are assumed to self-manage their options
@@ -127,6 +136,39 @@ EDataValidationResult UGameSettingsContribution_Discrete::IsDataValid(FDataValid
 	}
 
 	return Result;
+}
+
+bool UGameSettingsContribution_Discrete::CanEditChange(const FProperty* InProperty) const
+{
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	if (!InProperty)
+	{
+		return true;
+	}
+
+	const bool bHasCustomSettingClass = SettingClass != nullptr
+		&& SettingClass != UGameSettingValueDiscreteDynamic::StaticClass();
+	if (!bHasCustomSettingClass)
+	{
+		return true;
+	}
+
+	// These only feed the generic UGameSettingValueDiscreteDynamic. A custom
+	// SettingClass instantiates its own value type and self-manages options /
+	// default / persistence, so editing them would be misleading.
+	static const TSet<FName> DisabledWhenCustom = {
+		GET_MEMBER_NAME_CHECKED(UGameSettingsContribution_Discrete, Binding),
+		GET_MEMBER_NAME_CHECKED(UGameSettingsContribution_Discrete, Options),
+		GET_MEMBER_NAME_CHECKED(UGameSettingsContribution_Discrete, OptionsProvider),
+		GET_MEMBER_NAME_CHECKED(UGameSettingsContribution_Discrete, bUseClassDefaultValue),
+		GET_MEMBER_NAME_CHECKED(UGameSettingsContribution_Discrete, DefaultValue),
+	};
+
+	return !DisabledWhenCustom.Contains(InProperty->GetFName());
 }
 #endif
 

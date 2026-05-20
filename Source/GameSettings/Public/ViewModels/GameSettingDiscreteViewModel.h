@@ -27,6 +27,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Value")
 	int32 GetSelectedIndex() const { return SelectedIndex; }
 
+	/**
+	 * Cycle to the next / previous option, wrapping at the ends. Widget-agnostic
+	 * so a rotator, combo, gamepad shoulders, or a keybind all share one wrap
+	 * policy instead of each reimplementing modulo. No-ops when there are fewer
+	 * than two options. Delegates to SetSelectedIndex (which de-dups and
+	 * broadcasts), so the model write and FieldNotify happen exactly as for a
+	 * direct selection.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Value")
+	UE_API void SelectNextOption();
+
+	UFUNCTION(BlueprintCallable, Category = "Value")
+	UE_API void SelectPreviousOption();
+
 	// Read-only.
 
 	UFUNCTION(BlueprintCallable, Category = "Value")
