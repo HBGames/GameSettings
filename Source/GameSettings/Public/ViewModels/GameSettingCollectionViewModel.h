@@ -19,12 +19,13 @@ UCLASS(MinimalAPI, BlueprintType, DisplayName = "Game Setting Collection")
 class UGameSettingCollectionViewModel : public UGameSettingViewModel
 {
 	GENERATED_BODY()
+
 public:
 	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Hierarchy")
 	const TArray<UGameSettingViewModel*>& GetChildViewModels() const { return ChildViewModels; }
 
 	/** Replace the entire child list. Broadcasts FieldNotify. */
-	UE_API void SetChildViewModels(TArray<TObjectPtr<UGameSettingViewModel>> InChildren);
+	UE_API void SetChildViewModels(TArray<UGameSettingViewModel*> InChildren);
 
 private:
 	UPROPERTY()

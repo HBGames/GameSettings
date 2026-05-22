@@ -72,7 +72,7 @@ bool FGameSettingsEditConditions_DeferredResolve::RunTest(const FString& Paramet
 	Spec->TargetSetting = Target->GetSettingId();
 	Spec->bRequiredValue = true;
 
-	TArray<TObjectPtr<UGameSettingEditConditionSpec>> Specs = {Spec};
+	TArray<UGameSettingEditConditionSpec*> Specs = {Spec};
 	Registry->ApplyEditConditionSpecs(Owner, Specs);
 
 	TestEqual(TEXT("Pre-arrival: owner has no installed conditions"), Owner->GetEditConditions().Num(), 0);
@@ -105,7 +105,7 @@ bool FGameSettingsEditConditions_IdempotentReapply::RunTest(const FString& Param
 	Spec->TargetSetting = Target->GetSettingId();
 	Spec->bRequiredValue = true;
 
-	TArray<TObjectPtr<UGameSettingEditConditionSpec>> Specs = {Spec};
+	TArray<UGameSettingEditConditionSpec*> Specs = {Spec};
 	Registry->ApplyEditConditionSpecs(Owner, Specs);
 	Registry->ApplyEditConditionSpecs(Owner, Specs);
 	Registry->ApplyEditConditionSpecs(Owner, Specs);
@@ -133,7 +133,7 @@ bool FGameSettingsEditConditions_TargetRemovalCleanup::RunTest(const FString& Pa
 	Spec->TargetSetting = Target->GetSettingId();
 	Spec->bRequiredValue = true;
 
-	TArray<TObjectPtr<UGameSettingEditConditionSpec>> Specs = {Spec};
+	TArray<UGameSettingEditConditionSpec*> Specs = {Spec};
 	Registry->ApplyEditConditionSpecs(Owner, Specs);
 	TestEqual(TEXT("Pre-remove: owner has one installed condition"), Owner->GetEditConditions().Num(), 1);
 

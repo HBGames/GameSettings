@@ -203,8 +203,8 @@ void UGameSettingsAssetDiscoverySubsystem::TryAdd(const FAssetData& AssetData)
 
 void UGameSettingsAssetDiscoverySubsystem::RemoveByPath(const FSoftObjectPath& Path)
 {
-	TObjectPtr<UGameSettingsContribution> Removed;
-	if (!ContributionsByPath.RemoveAndCopyValue(Path, Removed))
+	UGameSettingsContribution* Removed;
+	if (!ToRawPtr(MutableView(ContributionsByPath))->RemoveAndCopyValue(Path, Removed))
 	{
 		return;
 	}

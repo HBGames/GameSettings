@@ -36,7 +36,7 @@ void UGameSettingRegistry::Initialize(ULocalPlayer* InLocalPlayer)
 	if (InLocalPlayer)
 	{
 		// Copy: Initialize can mutate the tree (child init / deferred flushes).
-		TArray<TObjectPtr<UGameSetting>> SettingsSnapshot = RegisteredSettings;
+		TArray<UGameSetting*> SettingsSnapshot = ObjectPtrDecay(RegisteredSettings);
 		for (UGameSetting* Setting : SettingsSnapshot)
 		{
 			if (Setting)

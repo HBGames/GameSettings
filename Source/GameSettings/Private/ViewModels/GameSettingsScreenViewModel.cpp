@@ -365,7 +365,7 @@ UGameSettingViewModel* UGameSettingsScreenViewModel::GetOrCreateViewModelFor(UGa
 		return nullptr;
 	}
 
-	for (const TObjectPtr<UGameSettingViewModel>& Existing : AllViewModels)
+	for (const UGameSettingViewModel* Existing : ObjectPtrDecay(AllViewModels))
 	{
 		if (Existing && Existing->GetSetting() == Setting)
 		{
@@ -403,8 +403,8 @@ void UGameSettingsScreenViewModel::HandleStructureChanged(UGameSettingRegistry* 
 {
 	// Evict VMs whose underlying setting is gone (the setting goes null
 	// because TObjectPtr clears garbage refs after MarkAsGarbage).
-	AllViewModels.RemoveAll(
-		[](const TObjectPtr<UGameSettingViewModel>& VM)
+	ObjectPtrDecay(AllViewModels).RemoveAll(
+		[](const UGameSettingViewModel* VM)
 		{
 			return !VM || !VM->GetSetting();
 		});

@@ -68,7 +68,7 @@ namespace UE::GameSettings::Private
 		//~FGCObject
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 		{
-			for (TPair<FSaveGameCacheKey, TObjectPtr<ULocalPlayerSaveGame>>& Pair : Entries)
+			for (TPair<FSaveGameCacheKey, ULocalPlayerSaveGame*>& Pair : MutableView(Entries))
 			{
 				Collector.AddReferencedObject(Pair.Value);
 			}
@@ -82,7 +82,7 @@ namespace UE::GameSettings::Private
 	private:
 		FSaveGameCache() = default;
 
-		TMap<FSaveGameCacheKey, TObjectPtr<ULocalPlayerSaveGame>> Entries;
+		TMap<FSaveGameCacheKey, ULocalPlayerSaveGame*> Entries;
 	};
 }
 
