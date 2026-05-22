@@ -241,7 +241,7 @@ FGameSettingHandle UGameSettingRegistry::AddCollection(UGameSettingCollection* I
 		// parent arrives. The collection stays in RegisteredSettings, so id
 		// lookups against it succeed - which means rows that want to nest
 		// under THIS collection can still find it as their parent.
-		DeferredPlacements.Add({ InCollection, ParentContainerId });
+		DeferredPlacements.Add({InCollection, ParentContainerId});
 		UE_LOG(LogGameSettings, Verbose,
 			TEXT("AddCollection('%s') deferred: parent '%s' not yet registered."),
 			*InCollection->GetSettingId().ToString(),
@@ -294,7 +294,7 @@ FGameSettingHandle UGameSettingRegistry::AddSetting(UGameSetting* InSetting, FPr
 	else if (ParentContainerId.IsValid())
 	{
 		// Parent specified but not registered yet. Queue and wait.
-		DeferredPlacements.Add({ InSetting, ParentContainerId });
+		DeferredPlacements.Add({InSetting, ParentContainerId});
 		UE_LOG(LogGameSettings, Verbose,
 			TEXT("AddSetting('%s') deferred: parent '%s' not yet registered."),
 			*InSetting->GetSettingId().ToString(),
@@ -339,7 +339,7 @@ bool UGameSettingRegistry::RemoveByHandle(const FGameSettingHandle& Handle)
 
 	const int32 RemovedCount = UnregisterSettingTree(Setting);
 	UE_LOG(LogGameSettings, Verbose, TEXT("RemoveByHandle %s removed %d setting(s)"),
-		   *Handle.ToString(), RemovedCount);
+		*Handle.ToString(), RemovedCount);
 
 	OnStructureChangedEvent.Broadcast(this);
 	return true;
@@ -486,13 +486,13 @@ void UGameSettingRegistry::WireSettingTree(UGameSetting* InSetting)
 	{
 		const FPrimaryAssetId IncomingId = InSetting->GetSettingId();
 		if (UGameSetting* const* Existing = ObjectPtrDecay(RegisteredSettings).FindByPredicate(
-				[IncomingId](UGameSetting* ExistingSetting) { return ExistingSetting && ExistingSetting->GetSettingId() == IncomingId; }))
+			[IncomingId](UGameSetting* ExistingSetting) { return ExistingSetting && ExistingSetting->GetSettingId() == IncomingId; }))
 		{
 			UE_LOG(LogGameSettings, Warning,
-				   TEXT("SettingId collision: '%s' already registered (existing=%s, incoming=%s). Both will live in the registry; give each setting a distinct contribution asset."),
-				   *IncomingId.ToString(),
-				   *(*Existing)->GetClass()->GetName(),
-				   *InSetting->GetClass()->GetName());
+				TEXT("SettingId collision: '%s' already registered (existing=%s, incoming=%s). Both will live in the registry; give each setting a distinct contribution asset."),
+				*IncomingId.ToString(),
+				*(*Existing)->GetClass()->GetName(),
+				*InSetting->GetClass()->GetName());
 		}
 	}
 
@@ -574,8 +574,7 @@ void UGameSettingRegistry::HandleSettingNavigation(UGameSetting* Setting)
 
 // --- Edit-condition specs ---------------------------------------------
 
-void UGameSettingRegistry::ApplyEditConditionSpecs(UGameSetting* Owner,
-	const TArray<TObjectPtr<UGameSettingEditConditionSpec>>& Specs)
+void UGameSettingRegistry::ApplyEditConditionSpecs(UGameSetting* Owner, const TArray<UGameSettingEditConditionSpec*>& Specs)
 {
 	if (!Owner || Specs.IsEmpty())
 	{
@@ -584,9 +583,8 @@ void UGameSettingRegistry::ApplyEditConditionSpecs(UGameSetting* Owner,
 
 	TArray<FAppliedEditConditionRecord>& OwnerRecords = AppliedEditConditions.FindOrAdd(Owner);
 
-	for (const TObjectPtr<UGameSettingEditConditionSpec>& SpecPtr : Specs)
+	for (UGameSettingEditConditionSpec* Spec : Specs)
 	{
-		UGameSettingEditConditionSpec* Spec = SpecPtr.Get();
 		if (!Spec)
 		{
 			continue;
@@ -624,8 +622,8 @@ void UGameSettingRegistry::ApplyEditConditionSpecs(UGameSetting* Owner,
 		else
 		{
 			FGameSettingDeferredEditCondition Pending;
-			Pending.Owner          = Owner;
-			Pending.Spec           = Spec;
+			Pending.Owner = Owner;
+			Pending.Spec = Spec;
 			Pending.MissingTargets = MoveTemp(MissingTargets);
 			DeferredEditConditions.Add(MoveTemp(Pending));
 		}
@@ -649,7 +647,7 @@ void UGameSettingRegistry::InstallSpec(UGameSetting* Owner, UGameSettingEditCond
 	Owner->AddEditCondition(Condition.ToSharedRef());
 
 	FAppliedEditConditionRecord Record;
-	Record.Spec      = Spec;
+	Record.Spec = Spec;
 	Record.Condition = Condition;
 
 	TArray<FPrimaryAssetId> DepIds;
@@ -699,9 +697,9 @@ void UGameSettingRegistry::FlushDeferredEditConditions()
 			FGameSettingDeferredEditCondition& Entry = DeferredEditConditions[Index];
 
 			Entry.MissingTargets.RemoveAll([this](const FPrimaryAssetId& Id)
-			{
-				return FindSettingById(Id) != nullptr;
-			});
+				{
+					return FindSettingById(Id) != nullptr;
+				});
 
 			if (!Entry.MissingTargets.IsEmpty())
 			{
@@ -732,9 +730,9 @@ void UGameSettingRegistry::CleanupEditConditionsForRemovedTarget(UGameSetting* R
 	// the owner is going away (recursive UnregisterSettingTree call) so its
 	// queued specs can't ever install. Owner-side targets are handled below.
 	DeferredEditConditions.RemoveAll([RemovedTarget](const FGameSettingDeferredEditCondition& Entry)
-	{
-		return Entry.Owner == RemovedTarget;
-	});
+		{
+			return Entry.Owner == RemovedTarget;
+		});
 
 	for (auto It = AppliedEditConditions.CreateIterator(); It; ++It)
 	{

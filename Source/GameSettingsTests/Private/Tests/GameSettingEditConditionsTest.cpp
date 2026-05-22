@@ -44,7 +44,7 @@ bool FGameSettingsEditConditions_EagerInstall::RunTest(const FString& Parameters
 	Spec->TargetSetting = Target->GetSettingId();
 	Spec->bRequiredValue = true;
 
-	TArray<TObjectPtr<UGameSettingEditConditionSpec>> Specs = {Spec};
+	TArray<UGameSettingEditConditionSpec*> Specs = {Spec};
 	Registry->ApplyEditConditionSpecs(Owner, Specs);
 
 	TestEqual(TEXT("Eagerly-installed: owner has one edit condition"), Owner->GetEditConditions().Num(), 1);

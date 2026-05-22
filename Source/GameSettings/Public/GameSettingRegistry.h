@@ -85,16 +85,19 @@ class UGameSettingRegistry : public UObject
 
 public:
 	DECLARE_EVENT_TwoParams(UGameSettingRegistry, FOnSettingChanged, UGameSetting*, EGameSettingChangeReason);
+
 	DECLARE_EVENT_OneParam(UGameSettingRegistry, FOnSettingEditConditionChanged, UGameSetting*);
 
 	FOnSettingChanged OnSettingChangedEvent;
 	FOnSettingEditConditionChanged OnSettingEditConditionChangedEvent;
 
 	DECLARE_EVENT_TwoParams(UGameSettingRegistry, FOnSettingNamedActionEvent, UGameSetting* /*Setting*/, FGameplayTag /*GameSettings_Action_Tag*/);
+
 	FOnSettingNamedActionEvent OnSettingNamedActionEvent;
 
 	/** Navigate to the child settings of the provided setting. */
 	DECLARE_EVENT_OneParam(UGameSettingRegistry, FOnExecuteNavigation, UGameSetting* /*Setting*/);
+
 	FOnExecuteNavigation OnExecuteNavigationEvent;
 
 	/**
@@ -103,6 +106,7 @@ public:
 	 * their visible list.
 	 */
 	DECLARE_EVENT_OneParam(UGameSettingRegistry, FOnStructureChanged, UGameSettingRegistry* /*Registry*/);
+
 	FOnStructureChanged OnStructureChangedEvent;
 
 public:
@@ -162,8 +166,7 @@ public:
 	 * Called by every UGameSettingsContribution_* subclass's Apply() right
 	 * after AddSetting / AddCollection succeeds.
 	 */
-	UE_API void ApplyEditConditionSpecs(UGameSetting* Owner,
-		const TArray<TObjectPtr<UGameSettingEditConditionSpec>>& Specs);
+	UE_API void ApplyEditConditionSpecs(UGameSetting* Owner, const TArray<UGameSettingEditConditionSpec*>& Specs);
 
 	/** How many edit-condition specs are currently waiting on missing targets. */
 	int32 GetNumDeferredEditConditions() const { return DeferredEditConditions.Num(); }
@@ -177,7 +180,7 @@ public:
 	UE_API UGameSetting* FindSettingByHandle(const FGameSettingHandle& Handle) const;
 
 	/** Primary-asset-id lookup that asserts the result and casts to T. */
-	template<typename T = UGameSetting>
+	template <typename T = UGameSetting>
 	T* FindSettingByIdChecked(const FPrimaryAssetId& Id) const
 	{
 		T* Setting = Cast<T>(FindSettingById(Id));
@@ -194,7 +197,9 @@ protected:
 	 */
 	UE_API virtual void OnInitialize(ULocalPlayer* InLocalPlayer);
 
-	virtual void OnSettingApplied(UGameSetting* Setting) { }
+	virtual void OnSettingApplied(UGameSetting* Setting)
+	{
+	}
 
 	// Internal event handlers.
 	UE_API void HandleSettingChanged(UGameSetting* Setting, EGameSettingChangeReason Reason);
@@ -221,8 +226,8 @@ private:
 	struct FAppliedEditConditionRecord
 	{
 		TWeakObjectPtr<UGameSettingEditConditionSpec> Spec;
-		TSharedPtr<FGameSettingEditCondition>         Condition;
-		TArray<TWeakObjectPtr<UGameSetting>>          Targets;
+		TSharedPtr<FGameSettingEditCondition> Condition;
+		TArray<TWeakObjectPtr<UGameSetting>> Targets;
 	};
 
 	/** Build + install one spec on the owner, recording the wire-up. */

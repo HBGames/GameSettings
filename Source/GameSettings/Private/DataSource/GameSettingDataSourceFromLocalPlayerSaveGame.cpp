@@ -48,7 +48,7 @@ namespace UE::GameSettings::Private
 			}
 
 			const FSaveGameCacheKey Key{ LocalPlayer, SaveGameClass.Get(), SlotName };
-			if (TObjectPtr<ULocalPlayerSaveGame>* Existing = Entries.Find(Key))
+			if (ULocalPlayerSaveGame* const* Existing = ObjectPtrDecay(Entries).Find(Key))
 			{
 				if (*Existing)
 				{
