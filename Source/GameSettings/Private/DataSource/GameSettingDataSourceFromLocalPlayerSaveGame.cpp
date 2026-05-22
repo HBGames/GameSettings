@@ -47,7 +47,7 @@ namespace UE::GameSettings::Private
 				return nullptr;
 			}
 
-			const FSaveGameCacheKey Key{ LocalPlayer, SaveGameClass.Get(), SlotName };
+			const FSaveGameCacheKey Key{LocalPlayer, SaveGameClass.Get(), SlotName};
 			if (ULocalPlayerSaveGame* const* Existing = ObjectPtrDecay(Entries).Find(Key))
 			{
 				if (*Existing)
@@ -68,15 +68,17 @@ namespace UE::GameSettings::Private
 		//~FGCObject
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 		{
-			for (TPair<FSaveGameCacheKey, ULocalPlayerSaveGame*>& Pair : MutableView(Entries))
+			for (TPair<FSaveGameCacheKey, ULocalPlayerSaveGame*> Pair : Entries)
 			{
 				Collector.AddReferencedObject(Pair.Value);
 			}
 		}
+
 		virtual FString GetReferencerName() const override
 		{
 			return TEXT("UE::GameSettings::Private::FSaveGameCache");
 		}
+
 		//~End FGCObject
 
 	private:

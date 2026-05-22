@@ -11,6 +11,7 @@
 #include "GameSettingValueScalar.h"
 #include "GameSettingsSubsystem.h"
 #include "GameSettingValueBool.h"
+#include "Templates/SubclassOf.h"
 #include "ViewModels/GameSettingActionViewModel.h"
 #include "ViewModels/GameSettingCollectionViewModel.h"
 #include "ViewModels/GameSettingDiscreteViewModel.h"
@@ -261,21 +262,21 @@ void UGameSettingsScreenViewModel::RebuildTabs()
 	// tiebreak - same contract as UGameSettingCollection child ordering, so
 	// tab order doesn't depend on asset-discovery arrival order.
 	Tabs.StableSort([](const UGameSettingViewModel& A, const UGameSettingViewModel& B)
-	{
-		const UGameSetting* SettingA = A.GetSetting();
-		const UGameSetting* SettingB = B.GetSetting();
-		if (!SettingA || !SettingB)
 		{
-			return SettingA != nullptr;
-		}
-		const int32 PriorityA = SettingA->GetSortPriority();
-		const int32 PriorityB = SettingB->GetSortPriority();
-		if (PriorityA != PriorityB)
-		{
-			return PriorityA < PriorityB;
-		}
-		return SettingA->GetSettingId().ToString() < SettingB->GetSettingId().ToString();
-	});
+			const UGameSetting* SettingA = A.GetSetting();
+			const UGameSetting* SettingB = B.GetSetting();
+			if (!SettingA || !SettingB)
+			{
+				return SettingA != nullptr;
+			}
+			const int32 PriorityA = SettingA->GetSortPriority();
+			const int32 PriorityB = SettingB->GetSortPriority();
+			if (PriorityA != PriorityB)
+			{
+				return PriorityA < PriorityB;
+			}
+			return SettingA->GetSettingId().ToString() < SettingB->GetSettingId().ToString();
+		});
 
 	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetTabs);
 
@@ -365,11 +366,11 @@ UGameSettingViewModel* UGameSettingsScreenViewModel::GetOrCreateViewModelFor(UGa
 		return nullptr;
 	}
 
-	for (const UGameSettingViewModel* Existing : ObjectPtrDecay(AllViewModels))
+	for (UGameSettingViewModel* Existing : ObjectPtrDecay(AllViewModels))
 	{
 		if (Existing && Existing->GetSetting() == Setting)
 		{
-			return Existing.Get();
+			return Existing;
 		}
 	}
 
@@ -391,11 +392,11 @@ TSubclassOf<UGameSettingViewModel> UGameSettingsScreenViewModel::ResolveViewMode
 	// Bool is checked before Discrete (it's a peer type now, but listing it
 	// here is a reminder that toggles get their own VM rather than falling
 	// through to the option-list VM).
-	if (Cast<UGameSettingValueBool>(Setting))        return UGameSettingToggleViewModel::StaticClass();
-	if (Cast<UGameSettingValueScalar>(Setting))      return UGameSettingScalarViewModel::StaticClass();
-	if (Cast<UGameSettingValueDiscrete>(Setting))    return UGameSettingDiscreteViewModel::StaticClass();
-	if (Cast<UGameSettingAction>(Setting))           return UGameSettingActionViewModel::StaticClass();
-	if (Cast<UGameSettingCollection>(Setting))       return UGameSettingCollectionViewModel::StaticClass();
+	if (Cast<UGameSettingValueBool>(Setting)) return UGameSettingToggleViewModel::StaticClass();
+	if (Cast<UGameSettingValueScalar>(Setting)) return UGameSettingScalarViewModel::StaticClass();
+	if (Cast<UGameSettingValueDiscrete>(Setting)) return UGameSettingDiscreteViewModel::StaticClass();
+	if (Cast<UGameSettingAction>(Setting)) return UGameSettingActionViewModel::StaticClass();
+	if (Cast<UGameSettingCollection>(Setting)) return UGameSettingCollectionViewModel::StaticClass();
 	return UGameSettingViewModel::StaticClass();
 }
 
@@ -403,11 +404,11 @@ void UGameSettingsScreenViewModel::HandleStructureChanged(UGameSettingRegistry* 
 {
 	// Evict VMs whose underlying setting is gone (the setting goes null
 	// because TObjectPtr clears garbage refs after MarkAsGarbage).
-	ObjectPtrDecay(AllViewModels).RemoveAll(
+	ToRawPtr(MutableView(AllViewModels))->RemoveAll(
 		[](const UGameSettingViewModel* VM)
-		{
-			return !VM || !VM->GetSetting();
-		});
+			{
+				return !VM || !VM->GetSetting();
+			});
 
 	RebuildTabs();
 	RebuildVisibleSettings();
