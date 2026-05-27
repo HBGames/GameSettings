@@ -1,103 +1,87 @@
 # Adding settings to the registry
 
-Three contribution paths. Pick the one that matches where your settings
-code lives.
+Four ways in. The first is the default and needs no code; the rest are for
+cases the default doesn't cover.
 
-> Adding visibility / enabled rules to a setting? See
-> [EDIT_CONDITIONS.md](EDIT_CONDITIONS.md). Every typed contribution carries
-> an `EditConditions` array; the six built-in spec types cover the Lyra
-> declarative surface and extend in C++ or Blueprint.
+> Identity and naming (how a contribution's `FPrimaryAssetId` is formed, how
+> rows reference their parent) live in [IDENTITY_AND_ASSETS.md](IDENTITY_AND_ASSETS.md).
+> Visibility / enable rules live in [EDIT_CONDITIONS.md](EDIT_CONDITIONS.md).
 
-| You're writing... | Use |
+| You're adding... | Use |
 |---|---|
-| A GameFeaturePlugin (cosmetic pack, beta features, content drop) | GFP action |
-| A runtime plugin (core engine module, gameplay framework) | Auto-contributor |
-| Game code that needs to add a setting at a specific moment | Direct C++ |
+| A normal setting authored in the editor | DataAsset (auto-discovered) |
+| Settings owned by an always-on plugin, kept in C++ | Auto-contributor |
+| Settings that need explicit ordering or out-of-folder registration in a GFP | GameFeature action |
+| A setting built at runtime from data you don't have until then | Direct C++ |
 
-All three end up at the same registry and the same handle-based
-register/remove contract.
+All four end at the same registry and the same handle-based register/remove
+contract.
 
 ---
 
-## 1. GFP action: `UGameFeatureAction_RegisterGameSettings`
+## 1. DataAsset (the default)
 
-This one fits content shipped as a GameFeaturePlugin. Settings show up
-when the GFP activates and go away when it deactivates.
+Author the setting as a `UGameSettingsContribution` DataAsset and save it
+under a mounted content path. `UGameSettingsAssetDiscoverySubsystem` watches
+the asset registry, finds it, and applies it to every LocalPlayer's
+`UGameSettingsSubsystem`. New content mounts (a GFP activating) and editor
+saves are caught the same way. Set `bEnabled = false` on the asset to skip
+it without loading the uasset.
 
-### Setup
+### The typed contribution classes
 
-1. Open your `UGameFeatureData` asset (`GameFeatureData_<YourGFP>.uasset`).
-2. Add a new action of type "Register Game Settings".
-3. In the action's `Contributions` array, add an entry for each
-   `UGameSettingsContribution` subclass you want to ship. The pickers
-   here are `Instanced`: pick a class, fill in its properties inline.
-
-### Typed contribution subclasses
-
-The plugin ships five inline-editable contribution types:
+Right-click in the Content Browser, Miscellaneous, Data Asset, then pick:
 
 | Class | Purpose |
 |---|---|
-| `Game Setting Tab` | Top-level tab keyed by `SettingId`. Other contributions reference its primary asset id as their `ParentContainer` to nest. |
-| `Game Setting Section` | Grouping container that nests inside a Tab (or another Section). Rows reference its primary asset id as their `ParentContainer`. |
-| `Game Setting Toggle` | Bool setting bound to a subsystem getter/setter. |
-| `Game Setting Scalar` | Slider with source range, step, optional clamps, and one of eight format functions. |
-| `Game Setting Discrete` | Option-list setting (graphics quality preset, language picker, etc.) bound to a string-keyed getter/setter. |
-| `Game Setting Action` | Button that broadcasts a `NamedAction` tag. The screen handler routes by tag. |
+| Game Setting Tab | Top-level page. Other contributions name it as their `ParentContainer` to nest. Binds to nothing. |
+| Game Setting Section | Grouping container under a Tab (or another Section). Binds to nothing. |
+| Game Setting Toggle | Bool setting. Binds to a bool getter/setter. |
+| Game Setting Scalar | Slider. `SourceRange`, `SourceStep`, optional `MinimumLimit` / `MaximumLimit`, and a `DisplayFormat` (eight format options from raw to percent). Binds to a numeric getter/setter. |
+| Game Setting Discrete | Option list. A static `Options` array of value/label pairs, or an `OptionsProvider` for a runtime-generated list, or a custom `SettingClass` that self-manages. Binds to a string getter/setter. |
+| Game Setting Action | Button. Carries an `ActionText` label and a `NamedAction` tag broadcast on click. |
 
-Arrival order between contributions is irrelevant. The registry holds any contribution whose parent hasn't shown up yet in a deferred-placement queue and re-parents it as soon as the parent arrives, regardless of which contribution applied first.
+Every typed contribution shares DisplayName, Description, SortPriority, and
+the `EditConditions` array. Rows and sections also share `ParentContainer`.
 
-The typed contributions use `FGameSettingsBinding` for property paths.
-Pick the subsystem class (any `ULocalPlayerSubsystem`,
-`UGameInstanceSubsystem`, `UWorldSubsystem`, or `UEngineSubsystem`),
-then type or pick the getter/setter `UFUNCTION` names. Editor
-validation checks the functions actually exist on the class at asset
-save time.
+### The binding
 
-### Code-side contribution subclass
+Toggle / Scalar / Discrete each carry an `FGameSettingsBinding`. It points
+at the storage that actually holds the value:
 
-If the typed ones don't fit, write your own subclass:
+- `TargetClass` is the class that owns the getter/setter. It must derive
+  from one of: a `USubsystem` (LocalPlayer / GameInstance / World / Engine),
+  `UGameUserSettings`, or `ULocalPlayerSaveGame`. The binding picks the right
+  data-source family from the class shape at runtime.
+- `GetterFunctionName` and `SetterFunctionName` are `UFUNCTION`s on that
+  class. The editor dropdown lists only functions whose shape matches the
+  contribution (a zero-arg bool getter for a Toggle, etc.) and ranks them by
+  name similarity to the asset name, so `Toggle_Subtitles` floats
+  `GetSubtitlesEnabled` to the top.
+- `SaveGameSlotName` only applies when `TargetClass` is a
+  `ULocalPlayerSaveGame`; leave it blank to default to the class name.
 
-```cpp
-UCLASS(EditInlineNew)
-class UMyPlugin_Settings_Foo : public UGameSettingsContribution
-{
-    GENERATED_BODY()
-public:
-    virtual void Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles) override
-    {
-        UGameSettingValueBool* Setting = NewObject<UGameSettingValueBool>(&Registry);
-        Setting->SetSettingId(FGameplayTag::RequestGameplayTag("Settings.MyPlugin.Foo"));
-        Setting->SetDisplayName(NSLOCTEXT("MyPlugin", "Foo_Name", "Enable Foo"));
-        Setting->SetDescriptionRichText(NSLOCTEXT("MyPlugin", "Foo_Desc", "Toggles whatever Foo does."));
-        Setting->SetDynamicGetter(/* property path to your getter */);
-        Setting->SetDynamicSetter(/* property path to your setter */);
-        Setting->SetDefaultValue(true);
+The editor validates the binding at save time. If the named functions don't
+exist on the class, or the getter returns the wrong type, you get a data
+validation error before the asset ever reaches the registry.
 
-        const FGameSettingHandle Handle = Registry.AddSetting(
-            Setting,
-            FGameplayTag::RequestGameplayTag("Settings.Tab.Audio"));   // parent tab tag
+By default Reset-To-Default reads the value the getter returns on the
+`TargetClass` CDO, so it tracks the C++ default and can't silently drift.
+Uncheck `bUseClassDefaultValue` to set an explicit default field instead.
 
-        OutHandles.Add(Handle);
-    }
-};
-```
-
-The action handles the rest: per-LocalPlayer apply on activation,
-symmetric remove on deactivation. If a LocalPlayer leaves mid-session
-(split-screen drop), the deactivation pass skips them via weak-ref.
-
-Pick this path when your settings ship inside a GFP and should track
-the GFP's activation state.
+In this project the usual targets are `UEFPSettingsLocal` (video / audio, a
+`UGameUserSettings` subclass) and `UEFPSettingsShared` (accessibility /
+mouse, a `ULocalPlayerSaveGame`).
 
 ---
 
-## 2. Auto-contributor: `UGameSettingsAutoContributor`
+## 2. Auto-contributor (C++, always on)
 
-This one fits plugins that always want their settings present, no
-matter what shape the project takes. The plugin's class loader
-discovers your contributor at module startup and applies it to every
-LocalPlayer.
+For settings owned by an always-on plugin that you'd rather keep in code
+than ship as a content asset. Subclass `UGameSettingsAutoContributor` and
+implement `Apply`. The module's class loader finds the CDO via
+`TObjectIterator` at startup and applies it to every LocalPlayer, including
+ones that join later.
 
 ```cpp
 UCLASS()
@@ -107,8 +91,16 @@ class UMyPlugin_AutoContributor : public UGameSettingsAutoContributor
 public:
     virtual void Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles) override
     {
-        // Same as the GFP action's subclass. Build settings, add them to
-        // the registry, append every handle to OutHandles.
+        UGameSettingValueBool* Toggle = NewObject<UGameSettingValueBool>(&Registry);
+        Toggle->SetSettingId(FPrimaryAssetId(TEXT("GameSettingsToggle"), TEXT("Toggle_HighContrastUI")));
+        Toggle->SetDisplayName(NSLOCTEXT("MyPlugin", "HighContrast_Name", "High contrast UI"));
+        Toggle->SetDescriptionRichText(NSLOCTEXT("MyPlugin", "HighContrast_Desc", "Increase UI contrast for readability."));
+        Toggle->SetDynamicGetter(GET_SUBSYSTEM_SETTINGS_FUNCTION_PATH(UMyPluginSubsystem, GetHighContrast));
+        Toggle->SetDynamicSetter(GET_SUBSYSTEM_SETTINGS_FUNCTION_PATH(UMyPluginSubsystem, SetHighContrast));
+
+        OutHandles.Add(Registry.AddSetting(
+            Toggle,
+            FPrimaryAssetId(TEXT("GameSettingsTab"), TEXT("Tab_Accessibility"))));   // parent tab
     }
 
     /** Optional. Gate registration at runtime. */
@@ -119,22 +111,47 @@ public:
 };
 ```
 
-That's it. The CDO is discovered automatically; no registration call is
-needed. New LocalPlayers (split-screen join, level transition) pick it
-up through `UGameSettingsSubsystem`'s subscription to discovery events.
+Note the difference from the DataAsset path: in code you set the setting's
+`FPrimaryAssetId` and its parent id by hand, and you bind storage with the
+`GET_*_SETTINGS_FUNCTION_PATH` macros rather than an `FGameSettingsBinding`.
+That's the low-level mechanism the typed contributions wrap. The macros and
+the available value types are covered under "Plugin-owned backing storage"
+below.
 
-Pick this path for settings owned by an always-on plugin: an engine
-module, an editor utility, an accessibility shim, anything that
-shouldn't depend on a GFP being active.
+Pick this path for an engine module, an accessibility shim, debug toggles,
+anything that shouldn't depend on a content asset or a GFP being active.
 
 ---
 
-## 3. Direct C++
+## 3. GameFeature action (cherry-pick)
+
+Most settings shipped inside a GameFeaturePlugin register automatically
+through discovery once the GFP's content mounts. Reach for
+`UGameFeatureAction_RegisterGameSettings` only when you need explicit
+ordering, or want to register a contribution that lives outside the GFP's
+own content folder.
+
+1. Open your `UGameFeatureData` asset.
+2. Add a "Register Game Settings" action.
+3. Fill its `Contributions` array with the `UGameSettingsContribution`
+   assets (or subclasses) you want registered when this GFP activates.
+
+The action applies its contributions per LocalPlayer on activation and
+removes them symmetrically on deactivation. If a LocalPlayer leaves
+mid-session (split-screen drop), the deactivation pass skips it through a
+weak-ref check.
+
+There's a sibling action, `Add Game Settings View Bindings`, that pushes a
+GFP-specific widget bindings asset onto an override stack. See
+`MVVM_GUIDE.md`.
+
+---
+
+## 4. Direct C++
 
 Use this when you have an explicit moment to register and a specific
-LocalPlayer in mind. One slider per detected audio output device. One
-keybind row per active mappable input. Debug toggles that only exist
-in non-shipping builds.
+LocalPlayer in mind. One slider per detected audio output device. One keybind
+row per active mappable input. Debug toggles that only exist in non-shipping.
 
 ```cpp
 ULocalPlayer* LocalPlayer = ...;
@@ -142,7 +159,7 @@ UGameSettingsSubsystem* Subsystem = LocalPlayer->GetSubsystem<UGameSettingsSubsy
 UGameSettingRegistry* Registry = Subsystem->GetOrCreateRegistry();
 
 UGameSettingAction* OpenCalibrationButton = NewObject<UGameSettingAction>(Registry);
-OpenCalibrationButton->SetSettingId(FGameplayTag::RequestGameplayTag("Settings.Video.HDR.Calibrate"));
+OpenCalibrationButton->SetSettingId(FPrimaryAssetId(TEXT("GameSettingsAction"), TEXT("Action_CalibrateHDR")));
 OpenCalibrationButton->SetDisplayName(LOCTEXT("HDRCalibrate_Name", "Calibrate HDR"));
 OpenCalibrationButton->SetActionText(LOCTEXT("HDRCalibrate_Action", "Open"));
 OpenCalibrationButton->SetCustomAction(FGameSettingCustomAction::CreateLambda(
@@ -150,7 +167,7 @@ OpenCalibrationButton->SetCustomAction(FGameSettingCustomAction::CreateLambda(
 
 const FGameSettingHandle MyHandle = Registry->AddSetting(
     OpenCalibrationButton,
-    FGameplayTag::RequestGameplayTag("Settings.Tab.Video"));
+    FPrimaryAssetId(TEXT("GameSettingsTab"), TEXT("Tab_Video")));
 
 // Hold MyHandle. Call Registry->RemoveByHandle(MyHandle) when you're done.
 ```
@@ -162,45 +179,35 @@ anywhere you'd otherwise be tempted to subclass the registry.
 
 ## The handle contract
 
-Every `Add*` returns a `FGameSettingHandle`. Whoever called `Add` keeps
-that handle and calls `Registry->RemoveByHandle` on teardown. The
-registry never holds back-pointers to contributors, which is what makes
-it safe across plugin unload.
+Every `Add*` returns a `FGameSettingHandle`. Whoever called `Add` keeps that
+handle and calls `Registry->RemoveByHandle` on teardown. The registry never
+holds back-pointers to contributors, which is what makes it safe across
+plugin unload.
 
 In practice:
 
-- The Game Feature Action retains its handles in `ActiveContributions`
-  and removes them on `OnGameFeatureDeactivating`.
-- Auto-contributor handles are tracked by `UGameSettingsSubsystem`
-  itself and torn down on `Deinitialize`.
+- The GameFeature action retains its handles in `ActiveContributions` and
+  removes them on `OnGameFeatureDeactivating`.
+- Auto-contributor and discovered-DataAsset handles are tracked by
+  `UGameSettingsSubsystem` itself and torn down on `Deinitialize` (or when
+  the source asset is removed).
 - Direct C++ callers manage their own handles.
 
-If you forget to remove a handle, the setting persists for the rest of
-the registry's lifetime (the LocalPlayer's lifetime). It doesn't crash
-or corrupt anything, but you'll see duplicate entries on hot-reload.
-The `LogGameSettings` Verbose channel logs every Add and Remove, so
-auditing is easy.
-
----
-
-## Tag conventions
-
-See `Docs/TAG_CONVENTIONS.md` for the full namespace contract. The short
-version:
-
-- Tab tags: `Settings.Tab.<TabName>` (project-defined or per-plugin)
-- Setting tags: `Settings.<Contributor>.<Group>.<Name>`
-- Plugin namespace boundary: `Settings.<YourPlugin>.*`
+Drop a handle and the setting persists for the rest of the registry's
+lifetime (the LocalPlayer's lifetime). It doesn't crash or corrupt anything,
+but you'll see duplicate entries on hot-reload. `LogGameSettings` Verbose
+logs every Add and Remove, so auditing is easy.
 
 ---
 
 ## Plugin-owned backing storage
 
 The Lyra-style `GET_LOCAL_SETTINGS_FUNCTION_PATH` and
-`GET_SHARED_SETTINGS_FUNCTION_PATH` macros only resolve through the
-project's `ULocalPlayer` subclass. If your plugin owns its own backing
-storage on a subsystem and you don't want to drag the project's
-LocalPlayer into it, use `FGameSettingDataSourceFromSubsystem`:
+`GET_SHARED_SETTINGS_FUNCTION_PATH` macros resolve through the project's
+`ULocalPlayer` subclass. If your plugin owns its own backing storage on a
+subsystem and you don't want to drag the project's LocalPlayer into it, use
+`GET_SUBSYSTEM_SETTINGS_FUNCTION_PATH` (the code equivalent of pointing an
+`FGameSettingsBinding` at a subsystem `TargetClass`):
 
 ```cpp
 UCLASS()
@@ -220,34 +227,37 @@ Setting->SetDynamicGetter(GET_SUBSYSTEM_SETTINGS_FUNCTION_PATH(UMyPluginSubsyste
 Setting->SetDynamicSetter(GET_SUBSYSTEM_SETTINGS_FUNCTION_PATH(UMyPluginSubsystem, SetMyToggle));
 ```
 
-The macro infers the subsystem family (LocalPlayer, GameInstance,
-World, Engine) from the class hierarchy at resolve time.
+The macro infers the subsystem family (LocalPlayer, GameInstance, World,
+Engine) from the class hierarchy at resolve time, the same way
+`FGameSettingsBinding` does for DataAsset-authored settings.
 
 ---
 
 ## Configuring the project's registry class
 
-Most projects don't need to subclass `UGameSettingRegistry`. If yours
-does (a global `SaveChanges` override, for example):
+Most projects don't need to subclass `UGameSettingRegistry`. If yours does
+(a global `SaveChanges` override, for example):
 
 1. Open Project Settings -> Game -> Game Settings.
 2. Set Registry Class to your subclass.
 3. Done. The subsystem auto-builds it when needed.
 
-You can also build the registry yourself and hand it to the subsystem
-with `Subsystem->SetRegistry(...)` if you have a specific moment to
-provision it (e.g. from a screen widget).
+You can also build the registry yourself and hand it to the subsystem with
+`Subsystem->SetRegistry(...)` if you have a specific moment to provision it
+(e.g. from a screen widget).
 
 ---
 
 ## Common mistakes
 
-- Dropping the handle on the floor. `Registry->AddSetting(MySetting)`
-  returns a handle. Drop it and you have no way to remove the setting
-  later. The registry holds the strong ref; you hold the cleanup token.
-- Adding the same `UGameSetting*` instance twice. A setting can only
-  live in one registry slot. The second `AddSetting` warns and no-ops.
-- Holding `UGameSetting*` across hot-reload. Settings can be torn down
-  and rebuilt by `UGameSettingRegistry::Regenerate()` or by a GFP
-  unmount. Cache by handle and re-resolve through `FindSettingByHandle`
-  if you need to survive a structural change.
+- Dropping the handle on the floor. `AddSetting` returns the only token that
+  removes the setting later. The registry holds the strong ref; you hold the
+  cleanup token.
+- Colliding asset names. The id is `<Type>:<AssetName>`, so two toggles both
+  named `Subtitles` share an id. The second `AddSetting` logs a warning and
+  keeps both rather than asserting. Give each asset a distinct name.
+- Adding the same `UGameSetting*` instance twice. A setting lives in one
+  registry slot. The second add warns and no-ops.
+- Holding `UGameSetting*` across hot-reload. Settings can be torn down and
+  rebuilt by `Regenerate()` or a GFP unmount. Cache by handle and re-resolve
+  through `FindSettingByHandle`, or by id through `FindSettingById`.
