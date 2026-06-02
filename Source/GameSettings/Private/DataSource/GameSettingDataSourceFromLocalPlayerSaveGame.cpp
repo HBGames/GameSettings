@@ -5,88 +5,8 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/SaveGame.h"
 #include "GameSettingsLog.h"
-#include "UObject/GCObject.h"
+#include "GameSettingsSaveGameCache.h"
 
-namespace UE::GameSettings::Private
-{
-	struct FSaveGameCacheKey
-	{
-		TWeakObjectPtr<const ULocalPlayer> LocalPlayer;
-		TWeakObjectPtr<const UClass> SaveGameClass;
-		FString SlotName;
-
-		bool operator==(const FSaveGameCacheKey& Other) const
-		{
-			return LocalPlayer == Other.LocalPlayer
-				&& SaveGameClass == Other.SaveGameClass
-				&& SlotName.Equals(Other.SlotName, ESearchCase::CaseSensitive);
-		}
-
-		friend uint32 GetTypeHash(const FSaveGameCacheKey& Key)
-		{
-			uint32 Hash = GetTypeHash(Key.LocalPlayer);
-			Hash = HashCombine(Hash, GetTypeHash(Key.SaveGameClass));
-			Hash = HashCombine(Hash, GetTypeHash(Key.SlotName));
-			return Hash;
-		}
-	};
-
-	class FSaveGameCache : public FGCObject
-	{
-	public:
-		static FSaveGameCache& Get()
-		{
-			static FSaveGameCache Instance;
-			return Instance;
-		}
-
-		ULocalPlayerSaveGame* FindOrLoad(const ULocalPlayer* LocalPlayer, TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, const FString& SlotName)
-		{
-			if (!LocalPlayer || !SaveGameClass)
-			{
-				return nullptr;
-			}
-
-			const FSaveGameCacheKey Key{LocalPlayer, SaveGameClass.Get(), SlotName};
-			if (ULocalPlayerSaveGame* const* Existing = ObjectPtrDecay(Entries).Find(Key))
-			{
-				if (*Existing)
-				{
-					return *Existing;
-				}
-				Entries.Remove(Key);
-			}
-
-			ULocalPlayerSaveGame* Loaded = ULocalPlayerSaveGame::LoadOrCreateSaveGameForLocalPlayer(SaveGameClass, LocalPlayer, SlotName);
-			if (Loaded)
-			{
-				Entries.Add(Key, Loaded);
-			}
-			return Loaded;
-		}
-
-		//~FGCObject
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override
-		{
-			for (TPair<FSaveGameCacheKey, ULocalPlayerSaveGame*> Pair : Entries)
-			{
-				Collector.AddReferencedObject(Pair.Value);
-			}
-		}
-
-		virtual FString GetReferencerName() const override
-		{
-			return TEXT("UE::GameSettings::Private::FSaveGameCache");
-		}
-
-		//~End FGCObject
-
-	private:
-		FSaveGameCache() = default;
-
-		TMap<FSaveGameCacheKey, ULocalPlayerSaveGame*> Entries;
-	};
-}
 
 FGameSettingDataSourceFromLocalPlayerSaveGame::FGameSettingDataSourceFromLocalPlayerSaveGame(
 	TSubclassOf<ULocalPlayerSaveGame> InSaveGameClass,
