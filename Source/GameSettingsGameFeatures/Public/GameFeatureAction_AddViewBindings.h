@@ -3,6 +3,7 @@
 #pragma once
 
 #include "GameFeatureAction.h"
+#include "GameFeaturesSubsystem.h"
 #include "Misc/Guid.h"
 
 #include "GameFeatureAction_AddViewBindings.generated.h"
@@ -42,7 +43,16 @@ public:
 #endif
 
 private:
-	FGuid ActiveOverrideHandle;
+	/** Override handle per activation context; deactivating one context pops only its override. */
+	TMap<FGameFeatureStateChangeContext, FGuid> ActiveOverrideHandles;
+
+	/**
+	 * Strong ref keeping the loaded asset alive while any context is
+	 * actived. The module's override stack only holds a weak ref, so
+	 * without this the override would silently vanish on GC.
+	 */
+	UPROPERTY(Transient)
+	TObjectPtr<UGameSettingsViewBindings> ResolvedBindings;
 };
 
 #undef UE_API

@@ -14,7 +14,7 @@
 
 #define LOCTEXT_NAMESPACE "GameSettingsGameFeatures"
 
-void UGameFeatureAction_AddViewBindings::OnGameFeatureActivating(FGameFeatureActivatingContext& /*Context*/)
+void UGameFeatureAction_AddViewBindings::OnGameFeatureActivating(FGameFeatureActivatingContext& Context)
 {
 	UGameSettingsViewBindings* Resolved = Bindings.LoadSynchronous();
 	if (!Resolved)
@@ -25,20 +25,33 @@ void UGameFeatureAction_AddViewBindings::OnGameFeatureActivating(FGameFeatureAct
 		return;
 	}
 
-	ActiveOverrideHandle = FGameSettingsModule::Get().AddViewBindingsOverride(Resolved, Priority);
+	FGuid& OverrideHandle = ActiveOverrideHandles.FindOrAdd(Context);
+	if (!ensure(!OverrideHandle.IsValid()))
+	{
+		// Double activation without a deactivate. Pop the stale override so it can't leak.
+		FGameSettingsModule::Get().RemoveViewBindingsOverride(OverrideHandle);
+	}
+
+	ResolvedBindings = Resolved;
+	OverrideHandle = FGameSettingsModule::Get().AddViewBindingsOverride(Resolved, Priority);
 	UE_LOG(LogGameSettings, Verbose,
 		TEXT("Pushed view-bindings override '%s' at priority %d"), *Resolved->GetName(), Priority);
 }
 
-void UGameFeatureAction_AddViewBindings::OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& /*Context*/)
+void UGameFeatureAction_AddViewBindings::OnGameFeatureDeactivating(FGameFeatureDeactivatingContext& Context)
 {
-	if (ActiveOverrideHandle.IsValid())
+	FGuid OverrideHandle;
+	if (ActiveOverrideHandles.RemoveAndCopyValue(Context, OverrideHandle) && OverrideHandle.IsValid())
 	{
 		if (FGameSettingsModule* Module = FGameSettingsModule::GetPtr())
 		{
-			Module->RemoveViewBindingsOverride(ActiveOverrideHandle);
+			Module->RemoveViewBindingsOverride(OverrideHandle);
 		}
-		ActiveOverrideHandle.Invalidate();
+	}
+
+	if (ActiveOverrideHandles.IsEmpty())
+	{
+		ResolvedBindings = nullptr;
 	}
 }
 

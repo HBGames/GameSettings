@@ -3,12 +3,15 @@
 #pragma once
 
 #include "GameFeatureAction.h"
+#include "GameFeaturesSubsystem.h"
 #include "GameSettingHandle.h"
 
 #include "GameFeatureAction_RegisterGameSettings.generated.h"
 
 #define UE_API GAMESETTINGSGAMEFEATURES_API
 
+class UGameInstance;
+class ULocalPlayer;
 class UGameSettingsContribution;
 class UGameSettingsSubsystem;
 
@@ -20,6 +23,12 @@ class UGameSettingsSubsystem;
  * To use: add this action to your UGameFeatureData asset, then fill the
  * Contributions array with whatever UGameSettingsContribution subclasses
  * you want (the typed Toggle/Scalar/etc., or your own subclass).
+ *
+ * Covers late arrivals: game instances that start after activation
+ * (early-activated GFPs, PIE started while active) and local players
+ * added after activation (split-screen joiners) get the contributions
+ * too. State is kept per activation context, so deactivating one
+ * context only tears down that context's registrations.
  *
  * Register and remove are symmetric via FGameSettingHandle. If a
  * subsystem goes away while the action is active (split-screen leave,
@@ -55,8 +64,26 @@ private:
 		TArray<FGameSettingHandle> Handles;
 	};
 
-	/** Bag of handles produced by this action's most recent activation, keyed by subsystem. */
-	TArray<FActiveContribution> ActiveContributions;
+	struct FPerContextData
+	{
+		/** Hook catching game instances that start after activation. */
+		FDelegateHandle GameInstanceStartHandle;
+
+		/** Per-game-instance OnLocalPlayerAdded hooks, removed on deactivate. */
+		TMap<TWeakObjectPtr<UGameInstance>, FDelegateHandle> LocalPlayerAddedHandles;
+
+		/** Handles produced for each LocalPlayer subsystem we applied to, keyed by subsystem. */
+		TArray<FActiveContribution> ActiveContributions;
+	};
+
+	/** Per-activation-context state so multiple contexts activate/deactivate independently. */
+	TMap<FGameFeatureStateChangeContext, FPerContextData> ContextData;
+
+	void HandleGameInstanceStart(UGameInstance* GameInstance, FGameFeatureStateChangeContext ChangeContext);
+	void HandleLocalPlayerAdded(ULocalPlayer* LocalPlayer, FGameFeatureStateChangeContext ChangeContext);
+	void AddToGameInstance(UGameInstance* GameInstance, FPerContextData& ActiveData, FGameFeatureStateChangeContext ChangeContext);
+	void ApplyToLocalPlayer(ULocalPlayer* LocalPlayer, FPerContextData& ActiveData);
+	void Reset(FPerContextData& ActiveData);
 };
 
 #undef UE_API
