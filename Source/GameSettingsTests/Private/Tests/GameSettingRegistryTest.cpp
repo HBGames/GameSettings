@@ -30,7 +30,7 @@ namespace UE::GameSettings::Tests
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsRegistry_AddFindRemove,
                                  "System.GameSettings.Registry.AddFindRemove",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsRegistry_AddFindRemove::RunTest(const FString& Parameters)
 {
@@ -55,7 +55,7 @@ bool FGameSettingsRegistry_AddFindRemove::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsRegistry_StructureChangedBroadcast,
                                  "System.GameSettings.Registry.StructureChangedBroadcast",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsRegistry_StructureChangedBroadcast::RunTest(const FString& Parameters)
 {
@@ -80,7 +80,7 @@ bool FGameSettingsRegistry_StructureChangedBroadcast::RunTest(const FString& Par
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsRegistry_CollectionNesting,
                                  "System.GameSettings.Registry.CollectionNesting",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsRegistry_CollectionNesting::RunTest(const FString& Parameters)
 {
@@ -102,7 +102,7 @@ bool FGameSettingsRegistry_CollectionNesting::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsRegistry_DeferredPlacementResolves,
                                  "System.GameSettings.Registry.DeferredPlacementResolves",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsRegistry_DeferredPlacementResolves::RunTest(const FString& Parameters)
 {
@@ -131,7 +131,7 @@ bool FGameSettingsRegistry_DeferredPlacementResolves::RunTest(const FString& Par
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsRegistry_RemoveSubtree,
                                  "System.GameSettings.Registry.RemoveSubtree",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsRegistry_RemoveSubtree::RunTest(const FString& Parameters)
 {
@@ -160,7 +160,7 @@ bool FGameSettingsRegistry_RemoveSubtree::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsRegistry_RegenerateClears,
                                  "System.GameSettings.Registry.RegenerateClears",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsRegistry_RegenerateClears::RunTest(const FString& Parameters)
 {

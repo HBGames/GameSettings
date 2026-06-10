@@ -8,7 +8,7 @@ public class GameSettingsTests : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PrivateDependencyModuleNames.AddRange(
+		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
@@ -18,8 +18,18 @@ public class GameSettingsTests : ModuleRules
 				// public surface; depend on it directly rather than leaning on
 				// GameSettings' transitive export.
 				"GameplayTags",
-				// The module under test.
+				// The modules under test.
 				"GameSettings",
+				"GameSettingsGameFeatures",
+			}
+		);
+
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				// FGameFeatureActivatingContext / FGameFeatureDeactivatingContext
+				// used to drive the GameFeature actions from tests.
+				"GameFeatures",
 			}
 		);
 	}

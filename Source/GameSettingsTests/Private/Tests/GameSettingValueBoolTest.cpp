@@ -10,7 +10,7 @@
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsValueBool_GetSetRoundTrip,
                                  "System.GameSettings.ValueBool.GetSetRoundTrip",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsValueBool_GetSetRoundTrip::RunTest(const FString& Parameters)
 {
@@ -32,7 +32,7 @@ bool FGameSettingsValueBool_GetSetRoundTrip::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsValueBool_NoGetterIsFalse,
                                  "System.GameSettings.ValueBool.NoGetterIsFalse",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsValueBool_NoGetterIsFalse::RunTest(const FString& Parameters)
 {
@@ -43,7 +43,7 @@ bool FGameSettingsValueBool_NoGetterIsFalse::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsValueBool_DefaultAndReset,
                                  "System.GameSettings.ValueBool.DefaultAndReset",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsValueBool_DefaultAndReset::RunTest(const FString& Parameters)
 {
@@ -66,7 +66,7 @@ bool FGameSettingsValueBool_DefaultAndReset::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsValueBool_StoreAndRestoreInitial,
                                  "System.GameSettings.ValueBool.StoreAndRestoreInitial",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsValueBool_StoreAndRestoreInitial::RunTest(const FString& Parameters)
 {
@@ -87,7 +87,7 @@ bool FGameSettingsValueBool_StoreAndRestoreInitial::RunTest(const FString& Param
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsValueBool_BroadcastsChange,
                                  "System.GameSettings.ValueBool.BroadcastsChange",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsValueBool_BroadcastsChange::RunTest(const FString& Parameters)
 {

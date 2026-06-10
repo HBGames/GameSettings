@@ -3,11 +3,12 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "GameSettingHandle.h"
+#include "GameSettingsTestHelpers.h"
 #include "Misc/AutomationTest.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsHandle_DefaultIsInvalid,
                                  "System.GameSettings.Handle.DefaultIsInvalid",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsHandle_DefaultIsInvalid::RunTest(const FString& Parameters)
 {
@@ -26,7 +27,7 @@ bool FGameSettingsHandle_DefaultIsInvalid::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsHandle_GenerateIsUnique,
                                  "System.GameSettings.Handle.GenerateIsUnique",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsHandle_GenerateIsUnique::RunTest(const FString& Parameters)
 {
@@ -50,7 +51,7 @@ bool FGameSettingsHandle_GenerateIsUnique::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsHandle_EqualityAndCopy,
                                  "System.GameSettings.Handle.EqualityAndCopy",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsHandle_EqualityAndCopy::RunTest(const FString& Parameters)
 {

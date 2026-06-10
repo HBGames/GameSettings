@@ -10,7 +10,7 @@
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsValueScalar_StepSnapping,
                                  "System.GameSettings.ValueScalar.StepSnapping",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsValueScalar_StepSnapping::RunTest(const FString& Parameters)
 {
@@ -30,7 +30,7 @@ bool FGameSettingsValueScalar_StepSnapping::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsValueScalar_MinMaxClamp,
                                  "System.GameSettings.ValueScalar.MinMaxClamp",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsValueScalar_MinMaxClamp::RunTest(const FString& Parameters)
 {
@@ -55,7 +55,7 @@ bool FGameSettingsValueScalar_MinMaxClamp::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsValueScalar_Normalized,
                                  "System.GameSettings.ValueScalar.Normalized",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsValueScalar_Normalized::RunTest(const FString& Parameters)
 {
@@ -82,7 +82,7 @@ bool FGameSettingsValueScalar_Normalized::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsValueScalar_ResettableToDefault,
                                  "System.GameSettings.ValueScalar.ResettableToDefault",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsValueScalar_ResettableToDefault::RunTest(const FString& Parameters)
 {
@@ -107,7 +107,7 @@ bool FGameSettingsValueScalar_ResettableToDefault::RunTest(const FString& Parame
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsValueScalar_FormatFunctions,
                                  "System.GameSettings.ValueScalar.FormatFunctions",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsValueScalar_FormatFunctions::RunTest(const FString& Parameters)
 {

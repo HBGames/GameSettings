@@ -1,5 +1,5 @@
 // Copyright Hitbox Games, LLC. All Rights Reserved.
 
-#include "Modules/ModuleManager.h"
+#include "GameSettingsTestsModule.h"
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, GameSettingsTests)
+IMPLEMENT_MODULE(FGameSettingsTestsModule, GameSettingsTests)

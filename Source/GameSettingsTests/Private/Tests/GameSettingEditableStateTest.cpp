@@ -3,11 +3,12 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "GameSettingFilterState.h"
+#include "GameSettingsTestHelpers.h"
 #include "Misc/AutomationTest.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsEditableState_Defaults,
                                  "System.GameSettings.EditableState.Defaults",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsEditableState_Defaults::RunTest(const FString& Parameters)
 {
@@ -21,7 +22,7 @@ bool FGameSettingsEditableState_Defaults::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsEditableState_HideDisableReset,
                                  "System.GameSettings.EditableState.HideDisableReset",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsEditableState_HideDisableReset::RunTest(const FString& Parameters)
 {
@@ -46,7 +47,7 @@ bool FGameSettingsEditableState_HideDisableReset::RunTest(const FString& Paramet
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsEditableState_Kill,
                                  "System.GameSettings.EditableState.Kill",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsEditableState_Kill::RunTest(const FString& Parameters)
 {

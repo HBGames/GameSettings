@@ -22,7 +22,7 @@ namespace UE::GameSettings::Tests
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsFilter_DefaultPasses,
                                  "System.GameSettings.Filter.DefaultPasses",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsFilter_DefaultPasses::RunTest(const FString& Parameters)
 {
@@ -39,7 +39,7 @@ bool FGameSettingsFilter_DefaultPasses::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsFilter_SearchText,
                                  "System.GameSettings.Filter.SearchText",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsFilter_SearchText::RunTest(const FString& Parameters)
 {
@@ -60,7 +60,7 @@ bool FGameSettingsFilter_SearchText::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsFilter_AllowList,
                                  "System.GameSettings.Filter.AllowList",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsFilter_AllowList::RunTest(const FString& Parameters)
 {
@@ -83,7 +83,7 @@ bool FGameSettingsFilter_AllowList::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsFilter_RootList,
                                  "System.GameSettings.Filter.RootList",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsFilter_RootList::RunTest(const FString& Parameters)
 {

@@ -26,7 +26,7 @@ namespace UE::GameSettings::Tests
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsEditConditions_EagerInstall,
                                  "System.GameSettings.EditConditions.EagerInstall",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsEditConditions_EagerInstall::RunTest(const FString& Parameters)
 {
@@ -55,7 +55,7 @@ bool FGameSettingsEditConditions_EagerInstall::RunTest(const FString& Parameters
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsEditConditions_DeferredResolve,
                                  "System.GameSettings.EditConditions.DeferredResolve",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsEditConditions_DeferredResolve::RunTest(const FString& Parameters)
 {
@@ -89,7 +89,7 @@ bool FGameSettingsEditConditions_DeferredResolve::RunTest(const FString& Paramet
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsEditConditions_IdempotentReapply,
                                  "System.GameSettings.EditConditions.IdempotentReapply",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsEditConditions_IdempotentReapply::RunTest(const FString& Parameters)
 {
@@ -117,7 +117,7 @@ bool FGameSettingsEditConditions_IdempotentReapply::RunTest(const FString& Param
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsEditConditions_TargetRemovalCleanup,
                                  "System.GameSettings.EditConditions.TargetRemovalCleanup",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsEditConditions_TargetRemovalCleanup::RunTest(const FString& Parameters)
 {
@@ -146,7 +146,7 @@ bool FGameSettingsEditConditions_TargetRemovalCleanup::RunTest(const FString& Pa
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsEditConditions_SpecActionMapping,
                                  "System.GameSettings.EditConditions.SpecActionMapping",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsEditConditions_SpecActionMapping::RunTest(const FString& Parameters)
 {

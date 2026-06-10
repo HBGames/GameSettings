@@ -24,7 +24,7 @@ namespace UE::GameSettings::Tests
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsCollection_AddRemove,
                                  "System.GameSettings.Collection.AddRemove",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsCollection_AddRemove::RunTest(const FString& Parameters)
 {
@@ -47,7 +47,7 @@ bool FGameSettingsCollection_AddRemove::RunTest(const FString& Parameters)
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsCollection_ChildCollections,
                                  "System.GameSettings.Collection.ChildCollections",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsCollection_ChildCollections::RunTest(const FString& Parameters)
 {
@@ -73,7 +73,7 @@ bool FGameSettingsCollection_ChildCollections::RunTest(const FString& Parameters
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGameSettingsCollection_FilterOrdering,
                                  "System.GameSettings.Collection.FilterOrdering",
-                                 EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+                                 UE::GameSettings::Tests::GameSettingsTestFlags)
 
 bool FGameSettingsCollection_FilterOrdering::RunTest(const FString& Parameters)
 {
