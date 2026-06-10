@@ -23,7 +23,7 @@ class UGameSettingRegistry;
  *      UGameSettingsSubsystem. Set bEnabled = false to skip without
  *      loading the asset.
  *   2. UGameSettingsAutoContributor. C++ subclass with a CDO that the
- *      runtime discovers via TObjectIterator at module startup. Use
+ *      runtime discovers via GetDerivedClasses at module startup. Use
  *      this when the contribution is code-only.
  *   3. UGameFeatureAction_RegisterGameSettings. Advanced cherry-picking
  *      list, useful when you want explicit ordering or to register

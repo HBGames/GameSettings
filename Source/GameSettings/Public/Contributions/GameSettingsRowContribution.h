@@ -7,8 +7,6 @@
 
 #include "GameSettingsRowContribution.generated.h"
 
-#define UE_API GAMESETTINGS_API
-
 /**
  * Intermediate base for any contribution that nests under another contribution
  * - tabs at the top level, sections inside tabs, rows inside either. Owns the
@@ -31,13 +29,14 @@ public:
 	 * contribution is registered at the top level. If set but the parent
 	 * hasn't arrived yet, the registry defers placement until it does.
 	 *
-	 * Asset rename redirects and the CoreRedirect for the legacy "ParentTab"
-	 * name keep this reference live across asset moves and the rename from
-	 * the pre-Section naming.
+	 * WARNING: parent lookups are raw FPrimaryAssetId equality - rename
+	 * redirects are not consulted. Renaming a container asset orphans every
+	 * row that points at it: those rows sit in the registry's deferred-
+	 * placement queue and warn, so a container rename must also update all
+	 * referencing rows. (The CoreRedirect for the legacy "ParentTab" name
+	 * only covers the property rename, not container asset renames.)
 	 */
 	UPROPERTY(EditAnywhere, Category = "Display",
 		meta = (AllowedTypes = "GameSettingsTab,GameSettingsSection", DisplayPriority = 20))
 	FPrimaryAssetId ParentContainer;
 };
-
-#undef UE_API

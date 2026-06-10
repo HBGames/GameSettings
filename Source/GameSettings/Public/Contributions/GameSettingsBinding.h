@@ -29,8 +29,11 @@ enum class EDataValidationResult : uint8;
  *  - ULocalPlayerSaveGame      -> FGameSettingDataSourceFromLocalPlayerSaveGame
  *
  * GetterFunctionName and SetterFunctionName must be UFUNCTIONs on the target
- * class; rename them via UE's reflection-aware refactor so the FName
- * references stay live.
+ * class. WARNING: the names are stored as raw FNames in saved contribution
+ * assets - nothing fixes them up when a UFUNCTION is renamed. Renaming a
+ * bound function breaks every saved (including shipped) asset that
+ * references it: the binding stops resolving, the row logs an error from
+ * Apply() and does not appear. Update all referencing assets when renaming.
  */
 USTRUCT(BlueprintType)
 struct FGameSettingsBinding

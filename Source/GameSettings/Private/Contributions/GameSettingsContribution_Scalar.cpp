@@ -4,6 +4,7 @@
 
 #include "GameSettingRegistry.h"
 #include "GameSettingValueScalarDynamic.h"
+#include "GameSettingsLog.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -41,8 +42,20 @@ namespace
 
 void UGameSettingsContribution_Scalar::Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles)
 {
-	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty() || !Binding.IsValid())
+	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty())
 	{
+		UE_LOG(LogGameSettings, Error, TEXT("Scalar contribution %s skipped: %s."),
+			*GetPathName(),
+			!GetPrimaryAssetId().IsValid() ? TEXT("primary asset id is invalid") : TEXT("DisplayName is empty"));
+		return;
+	}
+	if (!Binding.IsValid())
+	{
+		UE_LOG(LogGameSettings, Error, TEXT("Scalar contribution %s skipped: binding does not resolve (TargetClass=%s, Getter=%s, Setter=%s). Was a bound UFUNCTION renamed?"),
+			*GetPathName(),
+			*Binding.TargetClass.ToString(),
+			*Binding.GetterFunctionName.ToString(),
+			*Binding.SetterFunctionName.ToString());
 		return;
 	}
 
@@ -68,8 +81,14 @@ void UGameSettingsContribution_Scalar::Apply(UGameSettingRegistry& Registry, TAr
 	}
 	Setting->SetDefaultValue(EffectiveDefault);
 	Setting->SetSourceRangeAndStep(TRange<double>(SourceRange.X, SourceRange.Y), SourceStep);
-	if (MinimumLimit.IsSet()) Setting->SetMinimumLimit(MinimumLimit.GetValue());
-	if (MaximumLimit.IsSet()) Setting->SetMaximumLimit(MaximumLimit.GetValue());
+	if (MinimumLimit.IsSet())
+	{
+		Setting->SetMinimumLimit(MinimumLimit.GetValue());
+	}
+	if (MaximumLimit.IsSet())
+	{
+		Setting->SetMaximumLimit(MaximumLimit.GetValue());
+	}
 	Setting->SetDisplayFormat(ResolveFormat(DisplayFormat));
 
 	const FGameSettingHandle Handle = Registry.AddSetting(Setting, ParentContainer);

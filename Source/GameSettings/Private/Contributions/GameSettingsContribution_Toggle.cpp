@@ -4,6 +4,7 @@
 
 #include "GameSettingRegistry.h"
 #include "GameSettingValueBool.h"
+#include "GameSettingsLog.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -22,8 +23,20 @@ FPrimaryAssetType UGameSettingsContribution_Toggle::GetContributionPrimaryAssetT
 
 void UGameSettingsContribution_Toggle::Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles)
 {
-	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty() || !Binding.IsValid())
+	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty())
 	{
+		UE_LOG(LogGameSettings, Error, TEXT("Toggle contribution %s skipped: %s."),
+			*GetPathName(),
+			!GetPrimaryAssetId().IsValid() ? TEXT("primary asset id is invalid") : TEXT("DisplayName is empty"));
+		return;
+	}
+	if (!Binding.IsValid())
+	{
+		UE_LOG(LogGameSettings, Error, TEXT("Toggle contribution %s skipped: binding does not resolve (TargetClass=%s, Getter=%s, Setter=%s). Was a bound UFUNCTION renamed?"),
+			*GetPathName(),
+			*Binding.TargetClass.ToString(),
+			*Binding.GetterFunctionName.ToString(),
+			*Binding.SetterFunctionName.ToString());
 		return;
 	}
 

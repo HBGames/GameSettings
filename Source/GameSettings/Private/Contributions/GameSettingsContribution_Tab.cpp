@@ -4,6 +4,7 @@
 
 #include "GameSettingCollection.h"
 #include "GameSettingRegistry.h"
+#include "GameSettingsLog.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -24,6 +25,9 @@ void UGameSettingsContribution_Tab::Apply(UGameSettingRegistry& Registry, TArray
 {
 	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty())
 	{
+		UE_LOG(LogGameSettings, Error, TEXT("Tab contribution %s skipped: %s."),
+			*GetPathName(),
+			!GetPrimaryAssetId().IsValid() ? TEXT("primary asset id is invalid") : TEXT("DisplayName is empty"));
 		return;
 	}
 

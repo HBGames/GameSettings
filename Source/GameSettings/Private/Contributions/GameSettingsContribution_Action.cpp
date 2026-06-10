@@ -4,6 +4,7 @@
 
 #include "GameSettingAction.h"
 #include "GameSettingRegistry.h"
+#include "GameSettingsLog.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -22,8 +23,17 @@ FPrimaryAssetType UGameSettingsContribution_Action::GetContributionPrimaryAssetT
 
 void UGameSettingsContribution_Action::Apply(UGameSettingRegistry& Registry, TArray<FGameSettingHandle>& OutHandles)
 {
-	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty() || !NamedAction.IsValid())
+	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty())
 	{
+		UE_LOG(LogGameSettings, Error, TEXT("Action contribution %s skipped: %s."),
+			*GetPathName(),
+			!GetPrimaryAssetId().IsValid() ? TEXT("primary asset id is invalid") : TEXT("DisplayName is empty"));
+		return;
+	}
+	if (!NamedAction.IsValid())
+	{
+		UE_LOG(LogGameSettings, Error, TEXT("Action contribution %s skipped: NamedAction tag is not set (the screen handler routes on it)."),
+			*GetPathName());
 		return;
 	}
 

@@ -19,7 +19,7 @@ void UGameFeatureAction_AddViewBindings::OnGameFeatureActivating(FGameFeatureAct
 	UGameSettingsViewBindings* Resolved = Bindings.LoadSynchronous();
 	if (!Resolved)
 	{
-		UE_LOG(LogGameSettings, Warning,
+screenviewmodel		UE_LOG(LogGameSettings, Warning,
 			TEXT("GameFeatureAction_AddViewBindings: Bindings '%s' failed to load on activation."),
 			*Bindings.ToString());
 		return;

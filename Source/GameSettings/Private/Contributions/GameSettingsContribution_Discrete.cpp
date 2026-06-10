@@ -5,6 +5,7 @@
 #include "Contributions/GameSettingsDiscreteOptionsProvider.h"
 #include "GameSettingRegistry.h"
 #include "GameSettingValueDiscreteDynamic.h"
+#include "GameSettingsLog.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -25,6 +26,9 @@ void UGameSettingsContribution_Discrete::Apply(UGameSettingRegistry& Registry, T
 {
 	if (!GetPrimaryAssetId().IsValid() || DisplayName.IsEmpty())
 	{
+		UE_LOG(LogGameSettings, Error, TEXT("Discrete contribution %s skipped: %s."),
+			*GetPathName(),
+			!GetPrimaryAssetId().IsValid() ? TEXT("primary asset id is invalid") : TEXT("DisplayName is empty"));
 		return;
 	}
 
@@ -36,10 +40,17 @@ void UGameSettingsContribution_Discrete::Apply(UGameSettingRegistry& Registry, T
 		// Generic UGameSettingValueDiscreteDynamic requires bindings and at least one option source.
 		if (!Binding.IsValid())
 		{
+			UE_LOG(LogGameSettings, Error, TEXT("Discrete contribution %s skipped: binding does not resolve (TargetClass=%s, Getter=%s, Setter=%s). Was a bound UFUNCTION renamed?"),
+				*GetPathName(),
+				*Binding.TargetClass.ToString(),
+				*Binding.GetterFunctionName.ToString(),
+				*Binding.SetterFunctionName.ToString());
 			return;
 		}
 		if (Options.IsEmpty() && OptionsProvider == nullptr)
 		{
+			UE_LOG(LogGameSettings, Error, TEXT("Discrete contribution %s skipped: no option source (Options is empty and no OptionsProvider is set)."),
+				*GetPathName());
 			return;
 		}
 	}
