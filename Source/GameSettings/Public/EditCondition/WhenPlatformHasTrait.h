@@ -28,6 +28,9 @@ public:
 	//~End of FGameSettingEditCondition interface
 
 private:
+	/** Empty kill reasons get logged and replaced with a generic string (emptiness doubles as the Kill-vs-Disable mode flag). */
+	static FString ResolveKillReason(const FString& InKillReason, const TCHAR* FactoryName, FGameplayTag InVisibilityTag);
+
 	FGameplayTag VisibilityTag;
 	bool bTagDesired;
 	FString KillReason;

@@ -20,9 +20,10 @@ TSharedPtr<FGameSettingEditCondition> UGameSettingEditConditionSpec_PlatformTrai
 	const bool bDisableOnly = (Action == EGameSettingEditAction::Disable);
 
 	// Validate designer-authored fields before handing them to the
-	// FWhenPlatformHasTrait factories, which check() them as a C++ API
-	// contract. A bad asset should log an error and produce no condition
-	// (the install machinery tolerates null), not assert at runtime.
+	// FWhenPlatformHasTrait factories. The factories tolerate bad input
+	// (ensure + log), but a bad asset should log an error naming the asset
+	// and produce no condition at all (the install machinery tolerates
+	// null) rather than install a misbehaving one.
 	if (!VisibilityTag.IsValid())
 	{
 		UE_LOG(LogGameSettings, Error,
