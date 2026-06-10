@@ -54,12 +54,24 @@ void FGameSettingRegistryChangeTracker::ClearDirtyState()
 
 void FGameSettingRegistryChangeTracker::ApplyChanges()
 {
-	for (auto Entry : DirtySettings)
+	ensure(!bApplyingSettings);
+	if (bApplyingSettings)
 	{
-		if (UGameSettingValue* SettingValue = Cast<UGameSettingValue>(Entry.Value))
+		return;
+	}
+
+	{
+		// Guard against re-entrancy: Apply() side effects can fire
+		// HandleSettingChanged, which must not mutate DirtySettings while we
+		// iterate it. Mirrors the bRestoringSettings guard in RestoreToInitial.
+		TGuardValue<bool> LocalGuard(bApplyingSettings, true);
+		for (auto Entry : DirtySettings)
 		{
-			SettingValue->Apply();
-			SettingValue->StoreInitial();
+			if (UGameSettingValue* SettingValue = Cast<UGameSettingValue>(Entry.Value))
+			{
+				SettingValue->Apply();
+				SettingValue->StoreInitial();
+			}
 		}
 	}
 
@@ -90,7 +102,7 @@ void FGameSettingRegistryChangeTracker::RestoreToInitial()
 
 void FGameSettingRegistryChangeTracker::HandleSettingChanged(UGameSetting* Setting, EGameSettingChangeReason Reason)
 {
-	if (bRestoringSettings)
+	if (bRestoringSettings || bApplyingSettings)
 	{
 		return;
 	}

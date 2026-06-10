@@ -1,4 +1,5 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Hitbox Games, LLC. All Rights Reserved.
+// Originally derived from Lyra's GameSettings plugin (Copyright Epic Games, Inc.).
 
 #pragma once
 

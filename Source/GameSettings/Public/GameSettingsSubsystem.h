@@ -77,6 +77,7 @@ private:
 
 	UE_API void ApplyAllKnownContributions();
 	UE_API void ApplySingleAutoContributor(UGameSettingsAutoContributor* Contributor);
+	UE_API void HandleRegistryRegenerated(UGameSettingRegistry* InRegistry);
 	UE_API void ApplyAssetContribution(UGameSettingsContribution* Contribution);
 	UE_API void RemoveAssetContribution(UGameSettingsContribution* Contribution);
 	UE_API void RemoveAllAppliedContributionHandles();

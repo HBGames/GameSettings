@@ -63,12 +63,15 @@ bool UGameSettingValueBool::IsResettableToDefault() const
 
 void UGameSettingValueBool::OnInitialized()
 {
+	if (!ensureAlways(Getter) || !ensureAlways(Setter))
+	{
+		return;
+	}
+
 #if !UE_BUILD_SHIPPING
-	ensureAlways(Getter);
 	ensureAlwaysMsgf(Getter->Resolve(LocalPlayer),
 		TEXT("%s: getter %s did not resolve. Confirm the UFUNCTION exists, takes no parameters, and returns bool."),
 		*GetSettingId().ToString(), *Getter->ToString());
-	ensureAlways(Setter);
 	ensureAlwaysMsgf(Setter->Resolve(LocalPlayer),
 		TEXT("%s: setter %s did not resolve. Confirm the UFUNCTION exists and takes exactly one bool parameter."),
 		*GetSettingId().ToString(), *Setter->ToString());
@@ -79,7 +82,13 @@ void UGameSettingValueBool::OnInitialized()
 
 void UGameSettingValueBool::Startup()
 {
-	check(Getter);
+	if (!ensureAlways(Getter))
+	{
+		// Misconfigured (no Getter bound). Complete startup anyway so the
+		// registry's IsFinishedInitializing doesn't wait forever on us.
+		StartupComplete();
+		return;
+	}
 	Getter->Startup(LocalPlayer, FSimpleDelegate::CreateUObject(this, &ThisClass::OnDataSourcesReady));
 }
 

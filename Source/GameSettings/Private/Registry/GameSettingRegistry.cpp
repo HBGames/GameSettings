@@ -103,6 +103,10 @@ void UGameSettingRegistry::Regenerate()
 
 	OnInitialize(OwningLocalPlayer);
 
+	// Let the owner (UGameSettingsSubsystem) re-apply contributions before the
+	// structure-changed broadcast so widgets rebuild against a repopulated tree.
+	OnRegeneratedEvent.Broadcast(this);
+
 	OnStructureChangedEvent.Broadcast(this);
 }
 
@@ -221,6 +225,15 @@ FGameSettingHandle UGameSettingRegistry::AddCollection(UGameSettingCollection* I
 		return FGameSettingHandle{};
 	}
 
+	// Re-add guard: an already-registered collection keeps its existing handle.
+	// Warn and no-op - no fresh handle, no delegate re-binding, no re-placement.
+	if (RegisteredSettings.Contains(InCollection))
+	{
+		UE_LOG(LogGameSettings, Warning, TEXT("AddCollection('%s') called for an already-registered collection; ignoring re-add."),
+			*InCollection->GetSettingId().ToString());
+		return InCollection->GetHandle();
+	}
+
 	const FGameSettingHandle NewHandle = FGameSettingHandle::Generate();
 	InCollection->SetHandle(NewHandle);
 
@@ -276,6 +289,15 @@ FGameSettingHandle UGameSettingRegistry::AddSetting(UGameSetting* InSetting, FPr
 	if (UGameSettingCollection* AsCollection = Cast<UGameSettingCollection>(InSetting))
 	{
 		return AddCollection(AsCollection, ParentContainerId);
+	}
+
+	// Re-add guard: an already-registered setting keeps its existing handle.
+	// Warn and no-op - no fresh handle, no delegate re-binding, no re-placement.
+	if (RegisteredSettings.Contains(InSetting))
+	{
+		UE_LOG(LogGameSettings, Warning, TEXT("AddSetting('%s') called for an already-registered setting; ignoring re-add."),
+			*InSetting->GetSettingId().ToString());
+		return InSetting->GetHandle();
 	}
 
 	const FGameSettingHandle NewHandle = FGameSettingHandle::Generate();
@@ -402,6 +424,28 @@ void UGameSettingRegistry::FlushDeferredPlacements()
 				continue;
 			}
 
+			// Cycle guard: if the prospective parent already sits anywhere below
+			// the setting being placed, re-parenting would create a parent cycle
+			// (stack overflow on any tree traversal). Warn and drop the placement.
+			bool bWouldCycle = false;
+			for (UGameSetting* Ancestor = Parent->GetSettingParent(); Ancestor; Ancestor = Ancestor->GetSettingParent())
+			{
+				if (Ancestor == Entry.Setting)
+				{
+					bWouldCycle = true;
+					break;
+				}
+			}
+			if (bWouldCycle)
+			{
+				UE_LOG(LogGameSettings, Warning,
+					TEXT("FlushDeferredPlacements: placing '%s' under '%s' would create a parent cycle; skipping placement."),
+					Entry.Setting ? *Entry.Setting->GetSettingId().ToString() : TEXT("<null>"),
+					*Entry.ParentContainerId.ToString());
+				DeferredPlacements.RemoveAt(Index);
+				continue;
+			}
+
 			UGameSetting* PendingSetting = Entry.Setting;
 			DeferredPlacements.RemoveAt(Index);
 
@@ -433,6 +477,15 @@ void UGameSettingRegistry::RemoveFromDeferred(UGameSetting* InSetting)
 
 void UGameSettingRegistry::WireSettingTree(UGameSetting* InSetting)
 {
+	// Re-add guard FIRST, before any delegate binding or handle assignment:
+	// wiring an already-registered setting again would double-bind its change
+	// delegates and orphan its existing handle.
+	if (RegisteredSettings.Contains(InSetting))
+	{
+		UE_LOG(LogGameSettings, Warning, TEXT("Setting '%s' is being re-registered; skipping."), *InSetting->GetSettingId().ToString());
+		return;
+	}
+
 	// Every setting (top-level or nested child) gets the registry pointer.
 	// Previously only top-level settings were assigned, leaving OwningRegistry
 	// null on every child setting.
@@ -477,11 +530,6 @@ void UGameSettingRegistry::WireSettingTree(UGameSetting* InSetting)
 	// Soft collision policy: warn instead of crashing in shipping. A duplicate
 	// SettingId is almost always a contributor-naming bug; surface it without
 	// taking the game down.
-	if (RegisteredSettings.Contains(InSetting))
-	{
-		UE_LOG(LogGameSettings, Warning, TEXT("Setting '%s' is being re-registered; skipping."), *InSetting->GetSettingId().ToString());
-		return;
-	}
 	if (InSetting->GetSettingId().IsValid())
 	{
 		const FPrimaryAssetId IncomingId = InSetting->GetSettingId();
@@ -489,7 +537,7 @@ void UGameSettingRegistry::WireSettingTree(UGameSetting* InSetting)
 			[IncomingId](UGameSetting* ExistingSetting) { return ExistingSetting && ExistingSetting->GetSettingId() == IncomingId; }))
 		{
 			UE_LOG(LogGameSettings, Warning,
-				TEXT("SettingId collision: '%s' already registered (existing=%s, incoming=%s). Both will live in the registry; give each setting a distinct contribution asset."),
+				TEXT("SettingId collision: '%s' already registered (existing=%s, incoming=%s). Both will live in the registry, but FindSettingById/RemoveById and parent/edit-condition resolution bind to whichever registered FIRST; give each setting a distinct contribution asset."),
 				*IncomingId.ToString(),
 				*(*Existing)->GetClass()->GetName(),
 				*InSetting->GetClass()->GetName());
@@ -601,6 +649,16 @@ void UGameSettingRegistry::ApplyEditConditionSpecs(UGameSetting* Owner, const TA
 			continue;
 		}
 
+		// Also skip if the same Owner+Spec pair is still sitting in the
+		// deferred queue - re-applying while deferred would enqueue a duplicate
+		// that installs twice once the targets arrive.
+		const bool bAlreadyDeferred = DeferredEditConditions.ContainsByPredicate(
+			[Owner, Spec](const FGameSettingDeferredEditCondition& Entry) { return Entry.Owner == Owner && Entry.Spec == Spec; });
+		if (bAlreadyDeferred)
+		{
+			continue;
+		}
+
 		// Check every dependency target. Anything missing pushes onto the
 		// deferred queue rather than blocking install on the satisfied targets.
 		TArray<FPrimaryAssetId> DepIds;
@@ -635,6 +693,17 @@ void UGameSettingRegistry::InstallSpec(UGameSetting* Owner, UGameSettingEditCond
 	if (!Owner || !Spec)
 	{
 		return;
+	}
+
+	// Idempotency backstop for the flush path: never install the same
+	// Owner+Spec pair twice.
+	if (const TArray<FAppliedEditConditionRecord>* OwnerRecords = AppliedEditConditions.Find(Owner))
+	{
+		if (OwnerRecords->ContainsByPredicate(
+			[Spec](const FAppliedEditConditionRecord& Rec) { return Rec.Spec.Get() == Spec; }))
+		{
+			return;
+		}
 	}
 
 	TSharedPtr<FGameSettingEditCondition> Condition = Spec->BuildCondition(*this, *Owner);
@@ -756,6 +825,18 @@ void UGameSettingRegistry::CleanupEditConditionsForRemovedTarget(UGameSetting* R
 			if (bTargetsRemoved && Record.Condition.IsValid())
 			{
 				Owner->RemoveEditCondition(Record.Condition.ToSharedRef());
+
+				// The whole record is going away: also unbind the owner's
+				// dependency subscriptions on the record's surviving targets,
+				// or they'd keep firing for a condition that no longer exists.
+				for (const TWeakObjectPtr<UGameSetting>& SurvivingTarget : Record.Targets)
+				{
+					if (UGameSetting* Target = SurvivingTarget.Get())
+					{
+						Owner->RemoveEditDependency(Target);
+					}
+				}
+
 				Records.RemoveAt(RecIndex);
 				bOwnerNeedsRefresh = true;
 			}

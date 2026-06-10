@@ -1,4 +1,5 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Hitbox Games, LLC. All Rights Reserved.
+// Originally derived from Lyra's GameSettings plugin (Copyright Epic Games, Inc.).
 
 #include "GameSetting.h"
 #include "Framework/Text/ITextDecorator.h"
@@ -201,6 +202,14 @@ void UGameSetting::AddEditCondition(const TSharedRef<FGameSettingEditCondition>&
 {
 	EditConditions.Add(InEditCondition);
 
+	// Conditions installed after this setting initialized (the contribution
+	// flow initializes the setting first, then installs specs) would otherwise
+	// never receive Initialize.
+	if (LocalPlayer)
+	{
+		InEditCondition->Initialize(LocalPlayer);
+	}
+
 	InEditCondition->OnEditConditionChangedEvent.AddUObject(this, &ThisClass::RefreshEditableState);
 }
 
@@ -214,8 +223,31 @@ void UGameSetting::AddEditDependency(UGameSetting* DependencySetting)
 {
 	if (ensure(DependencySetting))
 	{
-		DependencySetting->OnSettingChangedEvent.AddUObject(this, &ThisClass::HandleEditDependencyChanged);
-		DependencySetting->OnSettingEditConditionChangedEvent.AddUObject(this, &ThisClass::HandleEditDependencyChanged);
+		// Retain the handles so RemoveEditDependency can unbind exactly this
+		// pair later, without disturbing other subscriptions on the same target.
+		FEditDependencyHandles& Handles = EditDependencyHandles.AddDefaulted_GetRef();
+		Handles.Target = DependencySetting;
+		Handles.SettingChangedHandle = DependencySetting->OnSettingChangedEvent.AddUObject(this, &ThisClass::HandleEditDependencyChanged);
+		Handles.EditConditionChangedHandle = DependencySetting->OnSettingEditConditionChangedEvent.AddUObject(this, &ThisClass::HandleEditDependencyChanged);
+	}
+}
+
+void UGameSetting::RemoveEditDependency(UGameSetting* DependencySetting)
+{
+	if (!DependencySetting)
+	{
+		return;
+	}
+
+	for (int32 Index = EditDependencyHandles.Num() - 1; Index >= 0; --Index)
+	{
+		if (EditDependencyHandles[Index].Target.Get() == DependencySetting)
+		{
+			DependencySetting->OnSettingChangedEvent.Remove(EditDependencyHandles[Index].SettingChangedHandle);
+			DependencySetting->OnSettingEditConditionChangedEvent.Remove(EditDependencyHandles[Index].EditConditionChangedHandle);
+			EditDependencyHandles.RemoveAt(Index);
+			return;
+		}
 	}
 }
 

@@ -39,6 +39,7 @@ private:
 
 	bool bSettingsChanged = false;
 	bool bRestoringSettings = false;
+	bool bApplyingSettings = false;
 
 	TWeakObjectPtr<UGameSettingRegistry> Registry;
 	TMap<FObjectKey, TWeakObjectPtr<UGameSetting>> DirtySettings;

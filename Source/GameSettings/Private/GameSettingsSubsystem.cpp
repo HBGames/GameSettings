@@ -70,6 +70,11 @@ void UGameSettingsSubsystem::Deinitialize()
 	RemoveAllAppliedContributionHandles();
 	AppliedContributions.Empty();
 
+	if (Registry)
+	{
+		Registry->OnRegeneratedEvent.RemoveAll(this);
+	}
+
 	// GC handles cleanup; null the ref so any stale weak-pointer holders see it.
 	Registry = nullptr;
 	Super::Deinitialize();
@@ -102,6 +107,7 @@ UGameSettingRegistry* UGameSettingsSubsystem::GetOrCreateRegistry()
 	}
 
 	Registry = NewObject<UGameSettingRegistry>(this, RegistryClass);
+	Registry->OnRegeneratedEvent.AddUObject(this, &UGameSettingsSubsystem::HandleRegistryRegenerated);
 	Registry->Initialize(GetLocalPlayer());
 
 	ApplyAllKnownContributions();
@@ -128,6 +134,7 @@ void UGameSettingsSubsystem::SetRegistry(UGameSettingRegistry* InRegistry)
 	}
 
 	Registry = InRegistry;
+	Registry->OnRegeneratedEvent.AddUObject(this, &UGameSettingsSubsystem::HandleRegistryRegenerated);
 
 	const ULocalPlayer* LP = GetLocalPlayer();
 	UE_LOG(LogGameSettings, Verbose, TEXT("Registry %s assigned to GameSettingsSubsystem for LocalPlayer %s"),
@@ -143,6 +150,10 @@ void UGameSettingsSubsystem::ApplyContribution(UGameSettingsContribution* Contri
 	{
 		return;
 	}
+	if (!Contribution->bEnabled)
+	{
+		return;
+	}
 
 	UGameSettingRegistry* Reg = GetOrCreateRegistry();
 	if (!Reg)
@@ -150,7 +161,41 @@ void UGameSettingsSubsystem::ApplyContribution(UGameSettingsContribution* Contri
 		return;
 	}
 
-	Contribution->Apply(*Reg, OutHandles);
+	// Same dedup as the discovery path: a GFP action and asset discovery can
+	// both deliver the same contribution asset; whichever arrives second no-ops.
+	// An entry whose settings have all been removed from the registry (a GFP
+	// deactivate removes by handle, bypassing this bookkeeping) is stale -
+	// drop it so a reactivation can re-apply.
+	const int32 ExistingIndex = AppliedContributions.IndexOfByPredicate(
+		[Contribution](const FAppliedContribution& Entry) { return Entry.Contribution.Get() == Contribution; });
+	if (ExistingIndex != INDEX_NONE)
+	{
+		const FAppliedContribution& Existing = AppliedContributions[ExistingIndex];
+		const bool bStillLive = Existing.Handles.IsEmpty() || Existing.Handles.ContainsByPredicate(
+			[Reg](const FGameSettingHandle& Handle) { return Reg->FindSettingByHandle(Handle) != nullptr; });
+		if (bStillLive)
+		{
+			return;
+		}
+		AppliedContributions.RemoveAt(ExistingIndex);
+	}
+
+	FAppliedContribution Entry;
+	Entry.Contribution = Contribution;
+	Contribution->Apply(*Reg, Entry.Handles);
+
+	OutHandles.Append(Entry.Handles);
+	AppliedContributions.Add(MoveTemp(Entry));
+}
+
+void UGameSettingsSubsystem::HandleRegistryRegenerated(UGameSettingRegistry* InRegistry)
+{
+	// Regenerate destroyed every registered setting, so every recorded
+	// contribution entry (and its handles) is stale. Drop them all so the
+	// dedup guards don't block the re-apply, then re-apply everything the
+	// subsystem knows about.
+	AppliedContributions.Reset();
+	ApplyAllKnownContributions();
 }
 
 void UGameSettingsSubsystem::ApplyAllKnownContributions()

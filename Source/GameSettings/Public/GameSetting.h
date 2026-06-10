@@ -1,4 +1,5 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Hitbox Games, LLC. All Rights Reserved.
+// Originally derived from Lyra's GameSettings plugin (Copyright Epic Games, Inc.).
 
 #pragma once
 
@@ -7,6 +8,7 @@
 #include "GameSettingFilterState.h"
 #include "GameSettingHandle.h"
 #include "UObject/PrimaryAssetId.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "GameSetting.generated.h"
 
@@ -54,9 +56,9 @@ public:
 
 	/**
 	 * Handle assigned by UGameSettingRegistry::AddSetting / AddCollection.
-	 * Invalid for settings constructed standalone (i.e. not yet registered)
-	 * or for settings registered through the legacy RegisterSetting path
-	 * that predates the handle system.
+	 * Invalid for settings constructed standalone (i.e. not yet registered).
+	 * Children wired into the registry as part of a parent's tree get a
+	 * handle backfilled by the registry (WireSettingTree).
 	 */
 	FGameSettingHandle GetHandle() const { return Handle; }
 
@@ -144,6 +146,14 @@ public:
 
 	/** Add setting dependency, if these settings change, we'll re-evaluate edit conditions for this setting. */
 	UE_API void AddEditDependency(UGameSetting* DependencySetting);
+
+	/**
+	 * Undo one AddEditDependency call for the given target: unbinds one pair of
+	 * change-event subscriptions on the target, leaving subscriptions added for
+	 * other edit-condition records on the same target intact. Used by the
+	 * registry when an edit-condition record is torn down (GameFeature unload).
+	 */
+	UE_API void RemoveEditDependency(UGameSetting* DependencySetting);
 
 	/** Read-only access to the installed edit-condition list. Useful for tests and dev overlays. */
 	const TArray<TSharedRef<FGameSettingEditCondition>>& GetEditConditions() const { return EditConditions; }
@@ -257,6 +267,17 @@ protected:
 	bool bReportAnalytics = false;
 
 private:
+
+	/** One AddEditDependency call's subscriptions, retained so RemoveEditDependency can unbind exactly one pair. */
+	struct FEditDependencyHandles
+	{
+		TWeakObjectPtr<UGameSetting> Target;
+		FDelegateHandle SettingChangedHandle;
+		FDelegateHandle EditConditionChangedHandle;
+	};
+
+	/** Per-call dependency subscription bookkeeping. */
+	TArray<FEditDependencyHandles> EditDependencyHandles;
 
 	/** Most settings are immediately ready, but some may require startup time before it's safe to call their functions. */
 	bool bReady = false;

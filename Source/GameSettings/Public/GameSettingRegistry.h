@@ -37,7 +37,7 @@ struct FGameSettingDeferredPlacement
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
-	TObjectPtr<UGameSetting> Setting = nullptr;
+	TObjectPtr<UGameSetting> Setting;
 
 	UPROPERTY(Transient)
 	FPrimaryAssetId ParentContainerId;
@@ -59,10 +59,10 @@ struct FGameSettingDeferredEditCondition
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
-	TObjectPtr<UGameSetting> Owner = nullptr;
+	TObjectPtr<UGameSetting> Owner;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UGameSettingEditConditionSpec> Spec = nullptr;
+	TObjectPtr<UGameSettingEditConditionSpec> Spec;
 
 	UPROPERTY(Transient)
 	TArray<FPrimaryAssetId> MissingTargets;
@@ -108,6 +108,22 @@ public:
 	DECLARE_EVENT_OneParam(UGameSettingRegistry, FOnStructureChanged, UGameSettingRegistry* /*Registry*/);
 
 	FOnStructureChanged OnStructureChangedEvent;
+
+	/**
+	 * Broadcast at the end of Regenerate, after the old tree is torn down and
+	 * OnInitialize has reseeded any subclass defaults, but before the final
+	 * structure-changed broadcast. The owning UGameSettingsSubsystem uses this
+	 * to re-apply auto-contributors and discovered contribution assets.
+	 *
+	 * Contributions pushed directly through ApplyContribution (e.g. the
+	 * RegisterGameSettings GameFeature action) are NOT re-applied. The
+	 * subsystem can't regenerate the caller's retained handles. Direct
+	 * callers must listen for this event (or re-activate, for GFPs) and
+	 * re-apply themselves.
+	 */
+	DECLARE_EVENT_OneParam(UGameSettingRegistry, FOnRegenerated, UGameSettingRegistry* /*Registry*/);
+
+	FOnRegenerated OnRegeneratedEvent;
 
 public:
 	UE_API UGameSettingRegistry();

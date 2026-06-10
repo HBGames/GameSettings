@@ -3,6 +3,8 @@
 #include "EditCondition/Specs/GameSettingEditConditionSpec_PlatformTrait.h"
 
 #include "EditCondition/WhenPlatformHasTrait.h"
+#include "GameSetting.h"
+#include "GameSettingsLog.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -16,6 +18,26 @@ TSharedPtr<FGameSettingEditCondition> UGameSettingEditConditionSpec_PlatformTrai
 	UGameSettingRegistry& Registry, UGameSetting& Owner) const
 {
 	const bool bDisableOnly = (Action == EGameSettingEditAction::Disable);
+
+	// Validate designer-authored fields before handing them to the
+	// FWhenPlatformHasTrait factories, which check() them as a C++ API
+	// contract. A bad asset should log an error and produce no condition
+	// (the install machinery tolerates null), not assert at runtime.
+	if (!VisibilityTag.IsValid())
+	{
+		UE_LOG(LogGameSettings, Error,
+			TEXT("PlatformTrait spec '%s' on setting '%s' has no VisibilityTag; edit condition skipped."),
+			*GetPathName(), *Owner.GetSettingId().ToString());
+		return nullptr;
+	}
+	if (bDisableOnly ? DisableReason.IsEmpty() : DevReason.IsEmpty())
+	{
+		UE_LOG(LogGameSettings, Error,
+			TEXT("PlatformTrait spec '%s' on setting '%s' is missing its %s; edit condition skipped."),
+			*GetPathName(), *Owner.GetSettingId().ToString(),
+			bDisableOnly ? TEXT("DisableReason") : TEXT("DevReason"));
+		return nullptr;
+	}
 
 	if (When == EGameSettingPlatformPresence::IfMissing)
 	{

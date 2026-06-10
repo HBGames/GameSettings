@@ -3,6 +3,7 @@
 #pragma once
 
 #include "EditCondition/GameSettingEditConditionSpec.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "Templates/SharedPointer.h"
 
 #include "GameSettingEditConditionSpec_BlueprintBridge.generated.h"
@@ -67,7 +68,7 @@ public:
  * call only inside BP_EvaluateState.
  */
 UCLASS(MinimalAPI)
-class UGameSettingEditConditionLibrary : public UObject
+class UGameSettingEditConditionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

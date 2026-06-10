@@ -2,6 +2,7 @@
 
 #include "GameSettingValueDiscreteDynamic_ScalabilityQuality.h"
 
+#include "DataSource/GameSettingDataSourceFromGameUserSettings.h"
 #include "Engine/Engine.h"
 #include "GameFramework/GameUserSettings.h"
 
@@ -11,6 +12,19 @@
 
 UGameSettingValueDiscreteDynamic_ScalabilityQuality::UGameSettingValueDiscreteDynamic_ScalabilityQuality()
 {
+	// Persist-only source: SaveChanges uses GetPersistKey/Persist (never the
+	// value path), and the "GameUserSettings" key collapses this into the same
+	// single ApplySettings flush as every other GameUserSettings-bound setting.
+	PersistDataSource = MakeShared<FGameSettingDataSourceFromGameUserSettings>(
+		TSubclassOf<UGameUserSettings>(UGameUserSettings::StaticClass()),
+		TArray<FString>({ TEXT("GetOverallScalabilityLevel") }));
+}
+
+void UGameSettingValueDiscreteDynamic_ScalabilityQuality::Startup()
+{
+	// No Getter/Setter data sources to wait on (we talk to GameUserSettings
+	// directly), so skip the base-class Startup that requires a Getter.
+	StartupComplete();
 }
 
 int32 UGameSettingValueDiscreteDynamic_ScalabilityQuality::GetMaxSupportedQualityLevel() const
@@ -21,7 +35,9 @@ int32 UGameSettingValueDiscreteDynamic_ScalabilityQuality::GetMaxSupportedQualit
 
 void UGameSettingValueDiscreteDynamic_ScalabilityQuality::OnInitialized()
 {
-	Super::OnInitialized();
+	// Deliberately skip UGameSettingValueDiscreteDynamic::OnInitialized - it
+	// requires Getter/Setter data sources, which this class never has.
+	UGameSettingValue::OnInitialized();
 
 	const int32 MaxQualityLevel = GetMaxSupportedQualityLevel();
 	auto AddOptionIfPossible = [&](int32 Index, FText&& Value)
@@ -80,7 +96,9 @@ int32 UGameSettingValueDiscreteDynamic_ScalabilityQuality::GetDiscreteOptionInde
 	{
 		return GetCustomOptionIndex();
 	}
-	return Level;
+	// The engine can report a quality level above our (possibly capped) preset
+	// list; clamp so the index stays inside the options we actually offer.
+	return FMath::Min(Level, Options.Num() - 1);
 }
 
 TArray<FText> UGameSettingValueDiscreteDynamic_ScalabilityQuality::GetDiscreteOptions() const

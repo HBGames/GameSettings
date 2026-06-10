@@ -81,6 +81,13 @@ UGameSettingValueScalarDynamic::UGameSettingValueScalarDynamic()
 void UGameSettingValueScalarDynamic::Startup()
 {
 	// Should I also do something with Setter?
+	if (!ensureAlways(Getter))
+	{
+		// Misconfigured (no Getter bound). Complete startup anyway so the
+		// registry's IsFinishedInitializing doesn't wait forever on us.
+		StartupComplete();
+		return;
+	}
 	Getter->Startup(LocalPlayer, FSimpleDelegate::CreateUObject(this, &ThisClass::OnDataSourcesReady));
 }
 
@@ -95,10 +102,13 @@ void UGameSettingValueScalarDynamic::OnInitialized()
 	ensureAlwaysMsgf(DisplayFormat, TEXT("%s: Has no DisplayFormat set.  Please call SetDisplayFormat."), *GetSettingId().ToString());
 #endif
 
+	if (!ensureAlways(Getter) || !ensureAlways(Setter))
+	{
+		return;
+	}
+
 #if !UE_BUILD_SHIPPING
-	ensureAlways(Getter);
 	ensureAlwaysMsgf(Getter->Resolve(LocalPlayer), TEXT("%s: %s did not resolve, are all functions and properties valid, and are they UFunctions/UProperties?"), *GetSettingId().ToString(), *Getter->ToString());
-	ensureAlways(Setter);
 	ensureAlwaysMsgf(Setter->Resolve(LocalPlayer), TEXT("%s: %s did not resolve, are all functions and properties valid, and are they UFunctions/UProperties?"), *GetSettingId().ToString(), *Setter->ToString());
 #endif
 

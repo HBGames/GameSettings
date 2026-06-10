@@ -62,6 +62,16 @@ protected:
 
 	UE_API bool AreOptionsEqual(const FString& InOptionA, const FString& InOptionB) const;
 
+	/**
+	 * The public discrete index space is the FILTERED options list (what
+	 * GetDiscreteOptions exposes after removing the edit state's disabled
+	 * options); OptionValues storage stays unfiltered. These map between the
+	 * two. Both return INDEX_NONE for out-of-range or filtered-out indices,
+	 * and are the identity when nothing is disabled.
+	 */
+	UE_API int32 FilteredIndexFromValueIndex(int32 ValueIndex) const;
+	UE_API int32 ValueIndexFromFilteredIndex(int32 FilteredIndex) const;
+
 protected:
 	TSharedPtr<FGameSettingDataSource> Getter;
 	TSharedPtr<FGameSettingDataSource> Setter;

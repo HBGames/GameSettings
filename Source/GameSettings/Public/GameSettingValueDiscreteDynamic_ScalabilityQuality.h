@@ -33,9 +33,11 @@ public:
 	UE_API UGameSettingValueDiscreteDynamic_ScalabilityQuality();
 
 	//~UGameSettingValue
+	UE_API virtual void Startup() override;
 	UE_API virtual void StoreInitial() override;
 	UE_API virtual void ResetToDefault() override;
 	UE_API virtual void RestoreToInitial() override;
+	virtual TSharedPtr<FGameSettingDataSource> GetPersistableDataSource() const override { return PersistDataSource; }
 	//~End UGameSettingValue
 
 	//~UGameSettingValueDiscrete
@@ -58,6 +60,14 @@ protected:
 
 	int32 GetCustomOptionIndex() const;
 	int32 GetCurrentScalabilityLevel() const;
+
+	/**
+	 * No Getter/Setter binding exists (this class talks to GameUserSettings
+	 * directly), but quality edits still land in GameUserSettings - so we hand
+	 * SaveChanges a GameUserSettings-keyed source that flushes the store
+	 * (ApplySettings) alongside every other GameUserSettings-bound setting.
+	 */
+	TSharedPtr<FGameSettingDataSource> PersistDataSource;
 
 	/** Pure preset options after the max-level filter. */
 	TArray<FText> Options;
