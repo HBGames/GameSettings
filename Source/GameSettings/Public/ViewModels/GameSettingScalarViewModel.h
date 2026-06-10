@@ -15,9 +15,9 @@
  * to the setting via SetValueNormalized; the setting's clamp/step handling
  * applies on the way through.
  *
- * SourceMin/Max/Step are read-once from the setting on SetSetting and
- * stay constant. They're plain getters (no FieldNotify) since they don't
- * change at runtime.
+ * SourceMin/Max/Step are re-read from the setting on every refresh and
+ * broadcast via FieldNotify when they change, so widgets bound to the
+ * slider range/step stay correct for settings whose range is dynamic.
  */
 UCLASS(MinimalAPI, BlueprintType, DisplayName = "Game Setting Scalar")
 class UGameSettingScalarViewModel : public UGameSettingViewModel
@@ -40,15 +40,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Value")
 	const FText& GetFormattedText() const { return FormattedText; }
 
-	// Constants from the setting; not FieldNotify.
+	// Range/step from the setting. Re-read on every refresh; FieldNotify on change.
 
-	UFUNCTION(BlueprintCallable, Category = "Value")
+	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Value")
 	double GetSourceMin() const { return SourceMin; }
 
-	UFUNCTION(BlueprintCallable, Category = "Value")
+	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Value")
 	double GetSourceMax() const { return SourceMax; }
 
-	UFUNCTION(BlueprintCallable, Category = "Value")
+	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Value")
 	double GetStep() const { return Step; }
 
 protected:

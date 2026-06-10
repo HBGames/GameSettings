@@ -88,8 +88,8 @@ protected:
 	TObjectPtr<const UInputAction> ResetToDefaultInputAction;
 
 private:
-	UE_API void HandleApplyAction();
-	UE_API void HandleResetToDefaultAction();
+	void HandleApplyAction();
+	void HandleResetToDefaultAction();
 
 	/**
 	 * Drop the CanResetToDefaults FieldNotify subscription. Idempotent.
@@ -98,10 +98,10 @@ private:
 	 * the engine in UCommonUserWidget::NativeDestruct). Removing/re-creating
 	 * them per activation is what broke Apply on screen reopen.
 	 */
-	UE_API void RemoveScreenFieldSubscription();
+	void RemoveScreenFieldSubscription();
 
 	/** Add or remove the Reset binding so it matches the VM's CanResetToDefaults. */
-	UE_API void SyncResetBindingToDirtyState();
+	void SyncResetBindingToDirtyState();
 
 	/**
 	 * Queue a SyncResetBindingToDirtyState for the next tick (coalesced).
@@ -116,13 +116,13 @@ private:
 	 * re-surfaced. Deferring the add/remove off the dispatch (same FTSTicker
 	 * pattern UCommonBoundActionBar::UpdateDisplay uses) makes it safe.
 	 */
-	UE_API void RequestResetBindingSync();
+	void RequestResetBindingSync();
 
 	/** FieldNotify callback for Screen.CanResetToDefaults. */
-	UE_API void HandleScreenFieldChanged(UObject* Object, UE::FieldNotification::FFieldId FieldId);
+	void HandleScreenFieldChanged(UObject* Object, UE::FieldNotification::FFieldId FieldId);
 
 	/** Result handler for the unsaved-changes discard dialog. */
-	UE_API void HandleDiscardConfirmation(ECommonMessagingResult Result);
+	void HandleDiscardConfirmation(ECommonMessagingResult Result);
 
 	FUIActionBindingHandle ApplyBindingHandle;
 	FUIActionBindingHandle ResetBindingHandle;

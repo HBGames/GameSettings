@@ -42,7 +42,13 @@ void UGameSettingsScreenViewModel::Initialize(UGameSettingsSubsystem* InSettings
 	Registry->OnSettingChangedEvent.AddUObject(this, &UGameSettingsScreenViewModel::HandleSettingChanged);
 
 	RebuildTabs();
-	RebuildVisibleSettings();
+	// RebuildTabs selects the first tab when one exists, and SetCurrentTab
+	// already rebuilds the visible list; only the no-tabs path still needs
+	// an explicit build here.
+	if (!CurrentTab)
+	{
+		RebuildVisibleSettings();
+	}
 }
 
 void UGameSettingsScreenViewModel::Shutdown()
@@ -75,6 +81,7 @@ void UGameSettingsScreenViewModel::SetCurrentTab(UGameSettingViewModel* InTab)
 	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetCurrentTab);
 
 	// Clear the navigation stack and reset to a tab-rooted filter.
+	const bool bHadNavigation = FilterNavigationStack.Num() > 0;
 	FilterNavigationStack.Reset();
 	FilterState = FGameSettingFilterState();
 	if (CurrentTab)
@@ -84,7 +91,10 @@ void UGameSettingsScreenViewModel::SetCurrentTab(UGameSettingViewModel* InTab)
 			FilterState.AddSettingToRootList(Setting);
 		}
 	}
-	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(CanPopNavigation);
+	if (bHadNavigation)
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(CanPopNavigation);
+	}
 
 	RebuildVisibleSettings();
 
@@ -113,6 +123,7 @@ void UGameSettingsScreenViewModel::Apply()
 		return;
 	}
 
+	// ApplyChanges already ends with ClearDirtyState; no extra clear needed.
 	ChangeTracker.ApplyChanges();
 	if (SettingsSubsystem)
 	{
@@ -121,7 +132,6 @@ void UGameSettingsScreenViewModel::Apply()
 			Registry->SaveChanges();
 		}
 	}
-	ChangeTracker.ClearDirtyState();
 	RefreshDirtyState();
 	RefreshResetState();
 }
@@ -402,16 +412,40 @@ TSubclassOf<UGameSettingViewModel> UGameSettingsScreenViewModel::ResolveViewMode
 
 void UGameSettingsScreenViewModel::HandleStructureChanged(UGameSettingRegistry* Registry)
 {
-	// Evict VMs whose underlying setting is gone (the setting goes null
-	// because TObjectPtr clears garbage refs after MarkAsGarbage).
-	ToRawPtr(MutableView(AllViewModels))->RemoveAll(
-		[](const UGameSettingViewModel* VM)
+	// Evict VMs whose underlying setting was just removed. This broadcast is
+	// synchronous with the removal: the setting is only garbage-flagged, so
+	// its TObjectPtr refs aren't nulled yet and a "is GetSetting() null" test
+	// would miss exactly the settings that were just removed. Ask the registry
+	// for membership instead - a live setting resolves back to itself by id.
+	auto IsSettingRegistered = [Registry](const UGameSetting* InSetting)
+	{
+		return InSetting && Registry && Registry->FindSettingById(InSetting->GetSettingId()) == InSetting;
+	};
+
+	AllViewModels.RemoveAll(
+		[&IsSettingRegistered](const UGameSettingViewModel* VM)
 			{
-				return !VM || !VM->GetSetting();
+				return !VM || !IsSettingRegistered(VM->GetSetting());
 			});
+
+	// If the selected tab's setting was removed, clear the selection before
+	// rebuilding so RebuildTabs re-defaults to the first remaining tab (or
+	// leaves it cleared when none remain). SetCurrentTab(nullptr) broadcasts
+	// and resets the filter/navigation state still rooted on the dead tab.
+	if (CurrentTab && !IsSettingRegistered(CurrentTab->GetSetting()))
+	{
+		SetCurrentTab(nullptr);
+	}
 
 	RebuildTabs();
 	RebuildVisibleSettings();
+
+	// Clear focus if the focused setting was removed or fell out of the
+	// visible set, so the detail view doesn't keep showing stale fields.
+	if (FocusedSetting && (!IsSettingRegistered(FocusedSetting->GetSetting()) || !VisibleSettings.Contains(FocusedSetting)))
+	{
+		SetFocusedSetting(nullptr);
+	}
 }
 
 void UGameSettingsScreenViewModel::HandleSettingChanged(UGameSetting* /*Setting*/, EGameSettingChangeReason /*Reason*/)

@@ -36,7 +36,7 @@ public:
 private:
 	friend class UGameSettingsViewModelResolver;
 
-	UE_API UObject* FindViewModelByClass(const UClass* ViewModelClass);
+	UObject* FindViewModelByClass(const UClass* ViewModelClass);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UGameSettingsScreenViewModel> ScreenViewModel;

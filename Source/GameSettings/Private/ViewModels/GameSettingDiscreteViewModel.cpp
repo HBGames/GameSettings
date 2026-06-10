@@ -20,11 +20,35 @@ void UGameSettingDiscreteViewModel::SetSelectedIndex(int32 NewIndex)
 		return;
 	}
 
+	// Validate against our own options list before touching anything.
+	// SetDiscreteOptionByIndex ensures and refuses out-of-range writes, so
+	// pushing an unvalidated index through (a combo box clearing its
+	// selection hands us INDEX_NONE) would leave the VM permanently
+	// desynced from the model. Invalid input is simply ignored.
+	if (!Options.IsValidIndex(NewIndex))
+	{
+		return;
+	}
+
 	const bool bWasAtDefault = (SelectedIndex == DefaultIndex);
 
+	// Update the cached value BEFORE calling into the setting: the setting
+	// fires OnSettingChangedEvent synchronously, so RefreshFromSetting runs
+	// inside this call. With the cache pre-set its "have I changed?" gate
+	// stays closed and the two-way binding doesn't loop back into here
+	// (same discipline as the scalar VM's SetNormalizedValue).
 	SelectedIndex = NewIndex;
 	Discrete->SetDiscreteOptionByIndex(NewIndex);
-	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(SelectedIndex);
+
+	// Reconcile in case the setting refused or remapped the write. Broadcast
+	// only when the applied value differs from what the widget set -
+	// re-broadcasting the same value would loop the two-way binding.
+	const int32 Applied = Discrete->GetDiscreteOptionIndex();
+	if (SelectedIndex != Applied)
+	{
+		SelectedIndex = Applied;
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(SelectedIndex);
+	}
 
 	const bool bIsAtDefaultNow = (SelectedIndex == DefaultIndex);
 	if (bWasAtDefault != bIsAtDefaultNow)
@@ -67,8 +91,13 @@ void UGameSettingDiscreteViewModel::RefreshFromSetting()
 		return;
 	}
 
+	// Capture IsAtDefault's inputs up front: it depends on BOTH SelectedIndex
+	// and DefaultIndex, so its broadcast can't nest inside either field's
+	// individual change check (a default-only change must still notify).
+	const bool bWasAtDefault = (SelectedIndex == DefaultIndex);
+
 	TArray<FText> NewOptions = Discrete->GetDiscreteOptions();
-	if (!AreFTextArraysEqual(Options, NewOptions))
+	if (!UE::GameSettings::Private::AreFTextArraysEqual(Options, NewOptions))
 	{
 		Options = MoveTemp(NewOptions);
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(Options);
@@ -84,14 +113,15 @@ void UGameSettingDiscreteViewModel::RefreshFromSetting()
 	const int32 NewSelected = Discrete->GetDiscreteOptionIndex();
 	if (SelectedIndex != NewSelected)
 	{
-		const bool bWasAtDefault = (SelectedIndex == DefaultIndex);
 		SelectedIndex = NewSelected;
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(SelectedIndex);
+	}
 
-		const bool bIsAtDefaultNow = (SelectedIndex == DefaultIndex);
-		if (bWasAtDefault != bIsAtDefaultNow)
-		{
-			UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(IsAtDefault);
-		}
+	// Broadcast IsAtDefault whenever its computed value actually flipped,
+	// whichever input moved it.
+	const bool bIsAtDefaultNow = (SelectedIndex == DefaultIndex);
+	if (bWasAtDefault != bIsAtDefaultNow)
+	{
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(IsAtDefault);
 	}
 }

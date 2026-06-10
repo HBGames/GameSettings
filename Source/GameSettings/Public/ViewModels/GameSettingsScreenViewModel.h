@@ -110,24 +110,24 @@ public:
 
 private:
 	/** Look up or build the VM that wraps a given setting. */
-	UE_API UGameSettingViewModel* GetOrCreateViewModelFor(UGameSetting* Setting);
+	UGameSettingViewModel* GetOrCreateViewModelFor(UGameSetting* Setting);
 
 	/** Pick the VM subclass for a setting. Default mapping; project subclasses can override. */
-	UE_API TSubclassOf<UGameSettingViewModel> ResolveViewModelClass(UGameSetting* Setting) const;
+	TSubclassOf<UGameSettingViewModel> ResolveViewModelClass(UGameSetting* Setting) const;
 
-	UE_API void RebuildTabs();
-	UE_API void RebuildVisibleSettings();
-	UE_API void RefreshDirtyState();
+	void RebuildTabs();
+	void RebuildVisibleSettings();
+	void RefreshDirtyState();
 
 	/**
 	 * Recompute "any visible setting differs from its default" and broadcast
 	 * CanResetToDefaults if it flipped. Independent of dirty tracking - call
 	 * after anything that can change a value or the visible set.
 	 */
-	UE_API void RefreshResetState();
+	void RefreshResetState();
 
-	UE_API void HandleStructureChanged(UGameSettingRegistry* Registry);
-	UE_API void HandleSettingChanged(UGameSetting* Setting, EGameSettingChangeReason Reason);
+	void HandleStructureChanged(UGameSettingRegistry* Registry);
+	void HandleSettingChanged(UGameSetting* Setting, EGameSettingChangeReason Reason);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UGameSettingsSubsystem> SettingsSubsystem;
@@ -135,8 +135,16 @@ private:
 	/** Owns its own change tracker; the registry is shared with the model layer. */
 	FGameSettingRegistryChangeTracker ChangeTracker;
 
-	/** The active filter (root, search, etc.) and the back-stack of previous filters. */
+	/**
+	 * The active filter (root, search, etc.) and the back-stack of previous
+	 * filters. UPROPERTY so the filters' inner SettingRootList object refs
+	 * are GC-visible; as plain members they'd dangle once a removed setting
+	 * is GC'd, and RebuildVisibleSettings would walk freed roots.
+	 */
+	UPROPERTY(Transient)
 	FGameSettingFilterState FilterState;
+
+	UPROPERTY(Transient)
 	TArray<FGameSettingFilterState> FilterNavigationStack;
 
 	UPROPERTY(Transient)

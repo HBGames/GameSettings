@@ -5,18 +5,21 @@
 #include "Containers/Array.h"
 #include "Internationalization/Text.h"
 
-inline bool AreFTextArraysEqual(const TArray<FText>& A, const TArray<FText>& B)
+namespace UE::GameSettings::Private
 {
-	if (A.Num() != B.Num())
+	inline bool AreFTextArraysEqual(const TArray<FText>& A, const TArray<FText>& B)
 	{
-		return false;
-	}
-	for (int32 Index = 0; Index < A.Num(); ++Index)
-	{
-		if (!A[Index].EqualTo(B[Index]))
+		if (A.Num() != B.Num())
 		{
 			return false;
 		}
+		for (int32 Index = 0; Index < A.Num(); ++Index)
+		{
+			if (!A[Index].EqualTo(B[Index]))
+			{
+				return false;
+			}
+		}
+		return true;
 	}
-	return true;
 }

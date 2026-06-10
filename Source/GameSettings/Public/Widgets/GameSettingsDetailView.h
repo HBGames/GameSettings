@@ -6,8 +6,6 @@
 
 #include "GameSettingsDetailView.generated.h"
 
-#define UE_API GAMESETTINGS_API
-
 /**
  * Detail panel for the focused setting.
  *
@@ -25,5 +23,3 @@ class UGameSettingsDetailView : public UCommonUserWidget
 {
 	GENERATED_BODY()
 };
-
-#undef UE_API

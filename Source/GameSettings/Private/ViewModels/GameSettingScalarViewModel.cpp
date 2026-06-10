@@ -70,9 +70,26 @@ void UGameSettingScalarViewModel::RefreshFromSetting()
 	}
 
 	const TRange<double> Range = Scalar->GetSourceRange();
-	SourceMin = Range.GetLowerBoundValue();
-	SourceMax = Range.GetUpperBoundValue();
-	Step = Scalar->GetSourceStep();
+	const double NewSourceMin = Range.GetLowerBoundValue();
+	if (SourceMin != NewSourceMin)
+	{
+		SourceMin = NewSourceMin;
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSourceMin);
+	}
+
+	const double NewSourceMax = Range.GetUpperBoundValue();
+	if (SourceMax != NewSourceMax)
+	{
+		SourceMax = NewSourceMax;
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSourceMax);
+	}
+
+	const double NewStep = Scalar->GetSourceStep();
+	if (Step != NewStep)
+	{
+		Step = NewStep;
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetStep);
+	}
 
 	// Match the SetNormalizedValue tolerance so float-conversion noise doesn't
 	// trip false broadcasts when RefreshFromSetting fires synchronously from

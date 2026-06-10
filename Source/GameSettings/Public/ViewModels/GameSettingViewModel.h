@@ -68,8 +68,8 @@ protected:
 	TObjectPtr<UGameSetting> Setting;
 
 private:
-	UE_API void HandleSettingChanged(UGameSetting* InSetting, EGameSettingChangeReason Reason);
-	UE_API void HandleEditConditionsChanged(UGameSetting* InSetting);
+	void HandleSettingChanged(UGameSetting* InSetting, EGameSettingChangeReason Reason);
+	void HandleEditConditionsChanged(UGameSetting* InSetting);
 
 	FText DisplayName;
 	FText DescriptionRichText;

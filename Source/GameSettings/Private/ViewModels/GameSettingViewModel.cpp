@@ -99,7 +99,7 @@ void UGameSettingViewModel::RefreshEditState()
 		bIsVisible = bNewVisible;
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(IsVisible);
 	}
-	if (!AreFTextArraysEqual(DisabledReasons, NewDisabledReasons))
+	if (!UE::GameSettings::Private::AreFTextArraysEqual(DisabledReasons, NewDisabledReasons))
 	{
 		DisabledReasons = MoveTemp(NewDisabledReasons);
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetDisabledReasons);

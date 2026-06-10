@@ -53,7 +53,29 @@ public:
 	UE_API TSubclassOf<UCommonUserWidget> FindEntryWidget(TSubclassOf<UGameSettingViewModel> ViewModelClass) const;
 
 	/** Walk the VM class chain to gather detail extensions. Returns class chain in derived-first order. */
+	UFUNCTION(BlueprintCallable, Category = "Bindings")
 	UE_API TArray<TSoftClassPtr<UCommonUserWidget>> GatherDetailExtensions(TSubclassOf<UGameSettingViewModel> ViewModelClass) const;
+
+#if WITH_EDITOR
+	UE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+private:
+	/**
+	 * Resolve every authored entry-widget soft class once, on first consult.
+	 * FindEntryWidget runs per generated row during list scroll, where a
+	 * LoadSynchronous is a hitch risk; pre-resolving pays that cost a single
+	 * time, and the hard refs in the resolved map keep the loaded classes
+	 * from being GC'd and re-loaded mid-scroll.
+	 */
+	void ResolveEntryWidgets() const;
+
+	/** Resolved entry classes by VM class. Mutable: built lazily from const lookups. */
+	UPROPERTY(Transient)
+	mutable TMap<TSubclassOf<UGameSettingViewModel>, TSubclassOf<UCommonUserWidget>> ResolvedEntryWidgets;
+
+	/** True once ResolvedEntryWidgets has been built. */
+	mutable bool bEntryWidgetsResolved = false;
 };
 
 #undef UE_API

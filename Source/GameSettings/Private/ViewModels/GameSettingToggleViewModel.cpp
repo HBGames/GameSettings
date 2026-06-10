@@ -19,9 +19,16 @@ void UGameSettingToggleViewModel::SetIsChecked(bool NewValue)
 		return;
 	}
 
+	// Update the cached value BEFORE calling into the setting: the setting
+	// fires OnSettingChangedEvent synchronously, so RefreshFromSetting runs
+	// inside this call. With the cache pre-set its "have I changed?" gate
+	// stays closed and no broadcast fires from inside the setter (same
+	// discipline as the scalar VM's SetNormalizedValue).
+	bIsChecked = NewValue;
 	BoolSetting->SetBoolValue(NewValue);
 
-	// Re-read in case the setting refused or clamped the write.
+	// Reconcile in case the setting refused or clamped the write; broadcast
+	// only when the applied value differs from what the widget set.
 	const bool Applied = BoolSetting->GetBoolValue();
 	if (bIsChecked != Applied)
 	{

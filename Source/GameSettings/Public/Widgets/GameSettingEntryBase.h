@@ -7,8 +7,6 @@
 
 #include "GameSettingEntryBase.generated.h"
 
-#define UE_API GAMESETTINGS_API
-
 /**
  * Base class for settings entry widgets shown in UGameSettingsListView.
  *
@@ -31,5 +29,3 @@ class UGameSettingEntryBase : public UCommonUserWidget, public IUserObjectListEn
 {
 	GENERATED_BODY()
 };
-
-#undef UE_API
