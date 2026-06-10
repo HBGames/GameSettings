@@ -51,11 +51,21 @@ int32 SGameResponsivePanel::RemoveSlot(const TSharedRef<SWidget>& SlotWidget)
 		}
 	}
 
-	return InnerGrid->RemoveSlot(SlotWidget);
+	const int32 Result = InnerGrid->RemoveSlot(SlotWidget);
+
+	// Re-pack surviving slots: without this they keep their old column/row
+	// indices (a gap where the removed slot was) and the empty column keeps
+	// its fill weight until the next add or wrap flip.
+	RefreshLayout();
+
+	return Result;
 }
 
 void SGameResponsivePanel::ClearChildren()
 {
+	// Drop the slot cache with the slots; the grid owns the FSlot memory, so
+	// stale entries here would dangle into the next AddSlot/RefreshLayout.
+	InnerSlots.Reset();
 	InnerGrid->ClearChildren();
 }
 
@@ -92,17 +102,17 @@ float SGameResponsivePanel::GetRelativeLayoutScale(int32 ChildIndex, float Layou
 
 bool SGameResponsivePanel::ShouldWrap() const
 {
-	if (PhysialScreenSize.IsZero() || !bCanWrapVertically)
+	if (PhysicalScreenSize.IsZero() || !bCanWrapVertically)
 	{
 		return false;
 	}
 
-	return (PhysialScreenSize.X < 7);
+	return (PhysicalScreenSize.X < 7);
 }
 
 void SGameResponsivePanel::RefreshResponsiveness()
 {
-	PhysialScreenSize = FVector2D(0, 0);
+	PhysicalScreenSize = FVector2D(0, 0);
 
 	TSharedPtr<SViewport> GameViewport = FSlateApplication::Get().GetGameViewport();
 	if (GameViewport.IsValid())
@@ -117,7 +127,7 @@ void SGameResponsivePanel::RefreshResponsiveness()
 
 			if (ScreenDensity != 0)
 			{
-				PhysialScreenSize = ViewportSize / (float)ScreenDensity;
+				PhysicalScreenSize = ViewportSize / (float)ScreenDensity;
 			}
 		}
 	}

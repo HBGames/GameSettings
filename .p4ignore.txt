@@ -1,0 +1,12 @@
+# P4 ignore rules local to the GameSettings plugin. The plugin is
+# dual-homed (its own git repo + the //GameSettings P4 depot); this file
+# keeps the git internals out of P4 even in workspaces that don't have the
+# UE5 root .p4ignore.txt in effect.
+#
+# Syntax note: use ** for recursive wildcards; ... is depot syntax and does
+# not work in ignore files.
+
+.git/
+Binaries/
+Intermediate/
+Saved/

@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# UE binary assets must never be LF-normalized. The plugin has no content
+# today (CanContainContent=false), but this protects the day that changes.
+*.uasset binary
+*.umap binary

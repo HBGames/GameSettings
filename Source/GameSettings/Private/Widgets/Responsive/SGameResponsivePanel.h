@@ -71,7 +71,7 @@ protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	virtual float GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const override;
-	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
+	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
 	// End SWidget overrides.
 
 	bool ShouldWrap() const;
@@ -84,7 +84,7 @@ protected:
 	TSharedRef<SGridPanel> InnerGrid;
 	TArray<SGridPanel::FSlot*> InnerSlots;
 
-	FVector2D PhysialScreenSize = FVector2D(0, 0);
+	FVector2D PhysicalScreenSize = FVector2D(0, 0);
 	float Scale = 1;
 
 	uint8 bCanWrapVertically : 1;

@@ -31,7 +31,7 @@
 		},
 		{
 			"Name": "GameSettingsTests",
-			"Type": "DeveloperTool",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		}
 	],
@@ -41,15 +41,15 @@
 			"Enabled": true
 		},
 		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		},
+		{
 			"Name": "CommonUI",
 			"Enabled": true
 		},
 		{
 			"Name": "GameFeatures",
-			"Enabled": true
-		},
-		{
-			"Name": "ModularGameplay",
 			"Enabled": true
 		},
 		{

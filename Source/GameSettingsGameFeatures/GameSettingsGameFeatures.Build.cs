@@ -19,12 +19,5 @@ public class GameSettingsGameFeatures : ModuleRules
 				"GameplayTags",
 			}
 		);
-
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"ModularGameplay",
-			}
-		);
 	}
 }
