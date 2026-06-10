@@ -6,8 +6,6 @@
 
 #include "GameSettingsAutoContributor.generated.h"
 
-#define UE_API GAMESETTINGS_API
-
 /**
  * A contribution that auto-registers with every UGameSettingsSubsystem
  * (every LocalPlayer) on plugin load. Use it for settings that should
@@ -15,7 +13,7 @@
  * toggle.
  *
  * Subclass and implement Apply() from UGameSettingsContribution. The
- * GameSettings module finds your subclass via TObjectIterator at startup
+ * GameSettings module finds your subclass via GetDerivedClasses at startup
  * and again when a new module loads, applies it to every existing
  * LocalPlayer's subsystem, and applies it to any LocalPlayer that joins
  * later.
@@ -31,5 +29,3 @@ public:
 	/** Override to gate auto-registration. Default is to register always. */
 	virtual bool ShouldAutoContribute() const { return true; }
 };
-
-#undef UE_API

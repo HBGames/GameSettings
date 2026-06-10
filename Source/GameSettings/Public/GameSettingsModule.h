@@ -34,8 +34,8 @@ public:
 		return FModuleManager::GetModulePtr<FGameSettingsModule>(TEXT("GameSettings"));
 	}
 
-	/** All auto-contributor CDOs discovered so far. */
-	const TArray<TObjectPtr<UGameSettingsAutoContributor>>& GetAutoContributors() const { return AutoContributors; }
+	/** All auto-contributor CDOs discovered so far, filtered to live objects. */
+	UE_API TArray<UGameSettingsAutoContributor*> GetAutoContributors() const;
 
 	/** Fires when a previously-unseen UGameSettingsAutoContributor subclass is discovered. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAutoContributorDiscovered, UGameSettingsAutoContributor* /*Contributor*/);
@@ -66,9 +66,16 @@ public:
 private:
 	UE_API void SweepAutoContributors();
 	UE_API void OnModulesChanged(FName ModuleThatChanged, EModuleChangeReason ReasonForChange);
+	UE_API void PruneDeadContributors();
 
-	/** Strong refs prevent GC; auto-contributors are CDOs and live forever anyway. */
-	TArray<TObjectPtr<UGameSettingsAutoContributor>> AutoContributors;
+	/**
+	 * Discovered contributor CDOs. Held weakly: a module class outside a
+	 * UPROPERTY is invisible to the GC, and a CDO dies when its defining
+	 * module unloads (hot-reload, GFP code modules), so a strong pointer
+	 * here would dangle. Dead entries are pruned on module unload and
+	 * filtered out by GetAutoContributors().
+	 */
+	TArray<TWeakObjectPtr<UGameSettingsAutoContributor>> AutoContributors;
 
 	/** Class set so we don't double-register. */
 	TSet<TWeakObjectPtr<UClass>> KnownContributorClasses;

@@ -109,18 +109,49 @@ TArray<UGameSettingsViewBindings*> FGameSettingsModule::GetActiveViewBindings() 
 	return Out;
 }
 
+TArray<UGameSettingsAutoContributor*> FGameSettingsModule::GetAutoContributors() const
+{
+	TArray<UGameSettingsAutoContributor*> Out;
+	Out.Reserve(AutoContributors.Num());
+	for (const TWeakObjectPtr<UGameSettingsAutoContributor>& Contributor : AutoContributors)
+	{
+		if (UGameSettingsAutoContributor* Live = Contributor.Get())
+		{
+			Out.Add(Live);
+		}
+	}
+	return Out;
+}
+
 void FGameSettingsModule::OnModulesChanged(FName /*ModuleThatChanged*/, EModuleChangeReason ReasonForChange)
 {
 	if (ReasonForChange == EModuleChangeReason::ModuleLoaded)
 	{
 		SweepAutoContributors();
 	}
+	else if (ReasonForChange == EModuleChangeReason::ModuleUnloaded)
+	{
+		PruneDeadContributors();
+	}
+}
+
+void FGameSettingsModule::PruneDeadContributors()
+{
+	AutoContributors.RemoveAll(
+		[](const TWeakObjectPtr<UGameSettingsAutoContributor>& Contributor) { return !Contributor.IsValid(); });
+	for (auto It = KnownContributorClasses.CreateIterator(); It; ++It)
+	{
+		if (!It->IsValid())
+		{
+			It.RemoveCurrent();
+		}
+	}
 }
 
 void FGameSettingsModule::SweepAutoContributors()
 {
-	// CDO discovery via TObjectIterator. The base class itself (Abstract)
-	// is filtered out because we walk subclasses through GetDerivedClasses.
+	// CDO discovery via GetDerivedClasses. The base class itself (Abstract)
+	// is filtered out by the class-flag check below.
 	TArray<UClass*> Subclasses;
 	GetDerivedClasses(UGameSettingsAutoContributor::StaticClass(), Subclasses, /*bRecursive*/ true);
 

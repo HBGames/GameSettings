@@ -46,6 +46,18 @@ namespace UE::GameSettings::Private
 				return nullptr;
 			}
 
+			// Evict entries for departed LocalPlayers (and values the GC
+			// nulled) so old PIE sessions / split-screen leavers don't stay
+			// rooted for process lifetime. Cheap: the map holds a handful of
+			// entries per live player.
+			for (auto It = Entries.CreateIterator(); It; ++It)
+			{
+				if (!It.Key().LocalPlayer.IsValid() || !It.Value())
+				{
+					It.RemoveCurrent();
+				}
+			}
+
 			const FSaveGameCacheKey Key{LocalPlayer, SaveGameClass.Get(), SlotName};
 			if (ULocalPlayerSaveGame* const* Existing = ObjectPtrDecay(Entries).Find(Key))
 			{
@@ -67,7 +79,10 @@ namespace UE::GameSettings::Private
 		//~FGCObject
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 		{
-			for (TPair<FSaveGameCacheKey, ULocalPlayerSaveGame*> Pair : Entries)
+			// By reference: the collector may null or remap the pointer, and
+			// a by-value pair would discard that fixup, leaving the map with
+			// a dangling entry that FindOrLoad then hands back out.
+			for (TPair<FSaveGameCacheKey, ULocalPlayerSaveGame*>& Pair : Entries)
 			{
 				Collector.AddReferencedObject(Pair.Value);
 			}
