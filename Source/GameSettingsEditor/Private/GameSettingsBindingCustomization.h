@@ -39,7 +39,7 @@ private:
 		int32 Score = 0;
 	};
 
-	void BuildFunctionOptions(const FName ContextPropertyName);
+	void BuildFunctionOptions();
 
 	TSharedRef<class SWidget> BuildFunctionPicker(TSharedRef<IPropertyHandle> FunctionNameHandle, const FName ContextPropertyName);
 
@@ -63,9 +63,14 @@ private:
 	TSharedPtr<IPropertyHandle> SetterHandle;
 	TSharedPtr<IPropertyHandle> SaveGameSlotHandle;
 
-	/** Ranked function lists, recomputed on TargetClass changes. */
-	TArray<TSharedPtr<FFunctionOption>> GetterOptions;
-	TArray<TSharedPtr<FFunctionOption>> SetterOptions;
+	/**
+	 * Ranked function lists, recomputed on TargetClass changes. Heap-shared
+	 * because SComboBox holds a raw OptionsSource pointer: each combo widget
+	 * co-owns its array (via a delegate capture in BuildFunctionPicker), so
+	 * the arrays stay valid even if the widgets outlive this customization.
+	 */
+	TSharedRef<TArray<TSharedPtr<FFunctionOption>>> GetterOptions = MakeShared<TArray<TSharedPtr<FFunctionOption>>>();
+	TSharedRef<TArray<TSharedPtr<FFunctionOption>>> SetterOptions = MakeShared<TArray<TSharedPtr<FFunctionOption>>>();
 
 	/** Combo widgets retained so OnTargetClassChanged can refresh them in place. */
 	TSharedPtr<SComboBox<TSharedPtr<FFunctionOption>>> GetterComboBox;

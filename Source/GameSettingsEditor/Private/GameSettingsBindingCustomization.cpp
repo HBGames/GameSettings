@@ -58,7 +58,7 @@ void FGameSettingsBindingCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 		ChildBuilder.AddProperty(TargetClassHandle.ToSharedRef());
 	}
 
-	BuildFunctionOptions(NAME_None);
+	BuildFunctionOptions();
 
 	if (GetterHandle.IsValid())
 	{
@@ -96,7 +96,7 @@ void FGameSettingsBindingCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 
 void FGameSettingsBindingCustomization::OnTargetClassChanged()
 {
-	BuildFunctionOptions(NAME_None);
+	BuildFunctionOptions();
 
 	if (GetterComboBox.IsValid())
 	{
@@ -165,10 +165,10 @@ bool FGameSettingsBindingCustomization::IsCandidateGetter(const UFunction* Funct
 	{
 		return false;
 	}
-	if (!Function->HasAnyFunctionFlags(FUNC_BlueprintCallable | FUNC_BlueprintPure | FUNC_Native | FUNC_Public))
-	{
-		// UFUNCTION reflection still applies if not pure/callable; we just need it reflected.
-	}
+	// No function-flag filter: the runtime resolves bindings purely through
+	// reflection (FindFunctionByName / PropertyPathHelpers), so any reflected
+	// function with the right signature is callable. Signature and name
+	// filters below do the screening.
 	// Must have a return parameter and no non-return parameters.
 	const FProperty* ReturnProp = Function->GetReturnProperty();
 	if (!ReturnProp)
@@ -249,10 +249,10 @@ EGameSettingsBindingValueType FGameSettingsBindingCustomization::ResolveExpected
 	return EGameSettingsBindingValueType::Unknown;
 }
 
-void FGameSettingsBindingCustomization::BuildFunctionOptions(const FName ContextPropertyName)
+void FGameSettingsBindingCustomization::BuildFunctionOptions()
 {
-	GetterOptions.Reset();
-	SetterOptions.Reset();
+	GetterOptions->Reset();
+	SetterOptions->Reset();
 
 	UClass* Target = ResolveTargetClass();
 	if (!Target)
@@ -286,7 +286,7 @@ void FGameSettingsBindingCustomization::BuildFunctionOptions(const FName Context
 			Option->FunctionName = Function->GetFName();
 			Option->DisplayLabel = FunctionString;
 			Option->Score = Score;
-			GetterOptions.Add(Option);
+			GetterOptions->Add(Option);
 		}
 		if (IsCandidateSetter(Function))
 		{
@@ -294,7 +294,7 @@ void FGameSettingsBindingCustomization::BuildFunctionOptions(const FName Context
 			Option->FunctionName = Function->GetFName();
 			Option->DisplayLabel = FunctionString;
 			Option->Score = Score;
-			SetterOptions.Add(Option);
+			SetterOptions->Add(Option);
 		}
 	}
 
@@ -306,19 +306,22 @@ void FGameSettingsBindingCustomization::BuildFunctionOptions(const FName Context
 			}
 			return A->DisplayLabel < B->DisplayLabel;
 		};
-	GetterOptions.Sort(SortByScoreThenName);
-	SetterOptions.Sort(SortByScoreThenName);
+	GetterOptions->Sort(SortByScoreThenName);
+	SetterOptions->Sort(SortByScoreThenName);
 }
 
 TSharedRef<SWidget> FGameSettingsBindingCustomization::BuildFunctionPicker(TSharedRef<IPropertyHandle> FunctionNameHandle, const FName ContextPropertyName)
 {
 	const bool bIsSetter = (ContextPropertyName == TEXT("Setter"));
-	TArray<TSharedPtr<FFunctionOption>>* OptionsPtr = bIsSetter ? &SetterOptions : &GetterOptions;
+	TSharedRef<TArray<TSharedPtr<FFunctionOption>>> Options = bIsSetter ? SetterOptions : GetterOptions;
 
 	TSharedRef<SComboBox<TSharedPtr<FFunctionOption>>> Combo =
 		SNew(SComboBox<TSharedPtr<FFunctionOption>>)
-			.OptionsSource(OptionsPtr)
-			.OnGenerateWidget_Lambda([](TSharedPtr<FFunctionOption> Option)
+			.OptionsSource(&Options.Get())
+			// Options is captured so the combo co-owns the array its raw
+			// OptionsSource pointer references; it can never read a freed array
+			// even if the widget outlives this customization.
+			.OnGenerateWidget_Lambda([Options](TSharedPtr<FFunctionOption> Option)
 				{
 					return SNew(STextBlock)
 						.Text(Option.IsValid() ? FText::FromString(Option->DisplayLabel) : LOCTEXT("EmptyOption", "(none)"));
@@ -361,9 +364,9 @@ TSharedRef<SWidget> FGameSettingsBindingCustomization::BuildFunctionPicker(TShar
 	// refreshes whenever the function name changes, so designers can catch
 	// type mismatches without saving the asset.
 	TSharedRef<SWidget> SignaturePreview = SNew(STextBlock)
-		.Text_Lambda([WeakThis = AsShared(), FunctionNameHandle]()
+		.Text_Lambda([WeakThis = TWeakPtr<FGameSettingsBindingCustomization>(SharedThis(this)), FunctionNameHandle]()
 			{
-				TSharedPtr<FGameSettingsBindingCustomization> Pinned = StaticCastSharedPtr<FGameSettingsBindingCustomization>(WeakThis.ToSharedPtr());
+				TSharedPtr<FGameSettingsBindingCustomization> Pinned = WeakThis.Pin();
 				return Pinned.IsValid() ? Pinned->FormatSelectedFunctionSignature(FunctionNameHandle) : FText::GetEmpty();
 			})
 		.ColorAndOpacity(FSlateColor::UseSubduedForeground())

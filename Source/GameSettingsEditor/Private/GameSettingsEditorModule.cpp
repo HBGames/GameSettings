@@ -31,6 +31,7 @@ public:
 		{
 			PropertyModule->UnregisterCustomPropertyTypeLayout(FGameSettingsBinding::StaticStruct()->GetFName());
 			PropertyModule->UnregisterCustomClassLayout(UGameSettingEditConditionSpec_DependsOnDiscrete::StaticClass()->GetFName());
+			PropertyModule->NotifyCustomizationModuleChanged();
 		}
 	}
 };

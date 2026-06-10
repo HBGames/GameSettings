@@ -14,7 +14,7 @@ namespace UE::GameSettingsEditor::FuzzyMatch
 			{
 				return true;
 			}
-			if (!FChar::IsAlnum(Prev) || Prev == TEXT('_'))
+			if (!FChar::IsAlnum(Prev))
 			{
 				return true;
 			}
@@ -114,6 +114,13 @@ namespace UE::GameSettingsEditor::FuzzyMatch
 			}
 			if (Idx > 0 && FChar::IsLower(Prev) && FChar::IsUpper(C))
 			{
+				Flush();
+			}
+			else if (Idx > 0 && FChar::IsUpper(Prev) && FChar::IsUpper(C)
+				&& Idx + 1 < Input.Len() && FChar::IsLower(Input[Idx + 1]))
+			{
+				// End of an acronym run followed by a word:
+				// "HDRBrightness" -> "HDR", "Brightness".
 				Flush();
 			}
 			Current.AppendChar(C);

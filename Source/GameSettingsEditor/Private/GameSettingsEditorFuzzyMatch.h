@@ -29,6 +29,7 @@ namespace UE::GameSettingsEditor::FuzzyMatch
 	/**
 	 * Split a CamelCase / PascalCase string into its component tokens.
 	 * "GetResolutionScale" -> { "Get", "Resolution", "Scale" }.
+	 * Acronym runs split before a following word: "HDRBrightness" -> { "HDR", "Brightness" }.
 	 * Underscores act as separators too: "set_voice_volume" -> { "set", "voice", "volume" }.
 	 */
 	void TokenizeCamelCase(FStringView Input, TArray<FString>& OutTokens);

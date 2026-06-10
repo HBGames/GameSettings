@@ -30,6 +30,12 @@ void FGameSettingEditConditionDiscreteCustomization::CustomizeDetails(IDetailLay
 	TSharedRef<IPropertyHandle> RequiredValuesHandle =
 		DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UGameSettingEditConditionSpec_DependsOnDiscrete, RequiredValues));
 
+	// Refresh when TargetSetting changes so the option list updates in place.
+	// Registered before the unresolved-options early-out below so that
+	// assigning a valid TargetSetting upgrades the fallback state live.
+	TargetSettingHandle->SetOnPropertyValueChanged(
+		FSimpleDelegate::CreateLambda([&DetailBuilder]() { DetailBuilder.ForceRefreshDetails(); }));
+
 	TArray<FOptionEntry> ResolvedOptions;
 	const bool bHasOptions = ResolveTargetOptions(TargetSettingHandle, ResolvedOptions);
 
@@ -45,12 +51,7 @@ void FGameSettingEditConditionDiscreteCustomization::CustomizeDetails(IDetailLay
 	// purpose-built checkbox list.
 	DetailBuilder.HideProperty(RequiredValuesHandle);
 
-	IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("Dependency");
 	BuildOptionRows(DetailBuilder, RequiredValuesHandle, ResolvedOptions);
-
-	// Refresh when TargetSetting changes so the option list updates in place.
-	TargetSettingHandle->SetOnPropertyValueChanged(
-		FSimpleDelegate::CreateLambda([&DetailBuilder]() { DetailBuilder.ForceRefreshDetails(); }));
 }
 
 bool FGameSettingEditConditionDiscreteCustomization::ResolveTargetOptions(
@@ -84,8 +85,8 @@ bool FGameSettingEditConditionDiscreteCustomization::ResolveTargetOptions(
 	if (!TargetAsset)
 	{
 		// Try to load on demand. GetPrimaryAssetObject returns null when the
-		// asset is unloaded; LoadPrimaryAsset forces it in for the editor.
-		FStreamableManager& Streamable = AssetManager->GetStreamableManager();
+		// asset is unloaded; a synchronous TryLoad on its path forces it in
+		// for the editor.
 		if (FSoftObjectPath SoftPath = AssetManager->GetPrimaryAssetPath(TargetId); SoftPath.IsValid())
 		{
 			TargetAsset = Cast<UGameSettingsContribution_Discrete>(SoftPath.TryLoad());
