@@ -186,17 +186,18 @@ duplicate identifiers. With independent contributors that's too brittle, so
 the plugin logs the collision and lets both settings live in the registry.
 The fix is to give each contribution asset a distinct name, since the asset
 name is the `FPrimaryAssetId`. Look settings up with `FindSettingById` or
-`FindSettingByHandle`.
+`FindSettingByHandle` — but note that id lookups (and parent/edit-condition
+resolution) bind to whichever duplicate registered first; only handles are
+unambiguous.
 
 Settings outlive the menu. The registry sits on the LocalPlayer subsystem.
 Ask `Subsystem->GetRegistry()->FindSettingById(...)` from anywhere, any
 time. The menu closing doesn't tear anything down.
 
-Late-joining LocalPlayers (split-screen joiners) automatically get
-auto-contributors and discovered DataAssets, but don't automatically get
-GFP-action contributions from already-active GFPs. If you need that, the
-GFP action will need an extension; for now, late-join during gameplay is
-uncommon and we're not solving it.
+Late-joining LocalPlayers (split-screen joiners) automatically get all
+three contribution paths: auto-contributors, discovered DataAssets, and
+GFP-action contributions (the action listens for game instances and
+local players that arrive while the feature is active).
 
 The plugin is a fork of Lyra's GameSettings. Most of the value-type
 hierarchy and the change-tracker logic is unchanged. The architecture work

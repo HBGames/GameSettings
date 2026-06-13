@@ -80,7 +80,7 @@ mouse, a `ULocalPlayerSaveGame`).
 For settings owned by an always-on plugin that you'd rather keep in code
 than ship as a content asset. Subclass `UGameSettingsAutoContributor` and
 implement `Apply`. The module's class loader finds the CDO via
-`TObjectIterator` at startup and applies it to every LocalPlayer, including
+`GetDerivedClasses` at startup and applies it to every LocalPlayer, including
 ones that join later.
 
 ```cpp
@@ -129,7 +129,9 @@ Most settings shipped inside a GameFeaturePlugin register automatically
 through discovery once the GFP's content mounts. Reach for
 `UGameFeatureAction_RegisterGameSettings` only when you need explicit
 ordering, or want to register a contribution that lives outside the GFP's
-own content folder.
+own content folder. (Listing an in-folder asset that discovery also finds
+is safe — the subsystem de-duplicates per contribution — it's just
+redundant.)
 
 1. Open your `UGameFeatureData` asset.
 2. Add a "Register Game Settings" action.
@@ -257,7 +259,13 @@ You can also build the registry yourself and hand it to the subsystem with
   named `Subtitles` share an id. The second `AddSetting` logs a warning and
   keeps both rather than asserting. Give each asset a distinct name.
 - Adding the same `UGameSetting*` instance twice. A setting lives in one
-  registry slot. The second add warns and no-ops.
+  registry slot. The second add warns, no-ops, and returns the setting's
+  existing handle.
 - Holding `UGameSetting*` across hot-reload. Settings can be torn down and
-  rebuilt by `Regenerate()` or a GFP unmount. Cache by handle and re-resolve
-  through `FindSettingByHandle`, or by id through `FindSettingById`.
+  rebuilt by `Regenerate()` or a GFP unmount. Auto-contributed and
+  discovered-asset settings come back automatically after a `Regenerate()`,
+  but as new objects with new handles — old handles are dead, so re-resolve
+  by id through `FindSettingById`. Settings registered through
+  `ApplyContribution` directly (the GFP action path) or by hand with
+  `AddSetting` do NOT come back; the registering code must re-apply (for a
+  GFP, deactivate/reactivate the feature).

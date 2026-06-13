@@ -27,9 +27,13 @@ contribution class; the name is the asset's name in the Content Browser.
 
 Two consequences:
 
-- The asset name is the identity. Rename the asset and the id changes, but
-  the asset manager's rename redirects keep existing references live, so a
-  row pointing at a renamed tab still resolves.
+- The asset name is the identity. Rename the asset and the id changes, and
+  nothing fixes up other assets that reference the old id — lookups are raw
+  `FPrimaryAssetId` equality, with no redirect consultation. Renaming a tab
+  or section orphans every row whose `ParentContainer` points at the old
+  name: those rows sit in the deferred-placement queue and log a warning.
+  Renaming a container means updating its referencing rows in the same
+  change.
 - The CDO has no id. `GetPrimaryAssetId` returns an invalid id for the
   class default object and archetypes, so a contribution only counts once
   it's a real saved asset.
