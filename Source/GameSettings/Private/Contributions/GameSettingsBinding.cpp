@@ -14,6 +14,8 @@
 #include "Misc/DataValidation.h"
 #endif
 
+#include "GameSettingsLog.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameSettingsBinding)
 
 #define LOCTEXT_NAMESPACE "GameSettings"
@@ -118,9 +120,37 @@ bool FGameSettingsBinding::TryGetClassDefaultValueAsString(FString& OutValue) co
 		return false;
 	}
 
-	// The CDO carries the C++-declared member initializers - the true factory
-	// default - independent of the live instance or any ini load. Running the
-	// getter against it gives the value a Reset-To-Default should restore.
+	// IMPORTANT: a config class's CDO is hydrated from the saved .ini at class
+	// load time, so its getter returns the LAST-SAVED value, not the factory
+	// default. Reading it here would let a saved value become its own default on
+	// the next launch (and "Reset to Default" would snap back to it). Only a
+	// non-config CDO carries the true C++ member initializers.
+	if (Loaded->HasAnyClassFlags(CLASS_Config | CLASS_PerObjectConfig))
+	{
+		// UGameUserSettings is config but exposes a factory-default reset. Build a
+		// throwaway instance (which loads the ini), reset it to defaults, then read
+		// the getter off that. It's the real default with no ini bleed, and without
+		// disturbing the engine's GameUserSettings singleton. SetToDefaults only
+		// assigns members. It does not save or apply hardware settings.
+		if (Loaded->IsChildOf(UGameUserSettings::StaticClass()))
+		{
+			UGameUserSettings* Temp = NewObject<UGameUserSettings>(GetTransientPackage(), Loaded);
+			Temp->SetToDefaults();
+			return PropertyPathHelpers::GetPropertyValueAsString(Temp, GetterFunctionName.ToString(), OutValue);
+		}
+
+		// Any other config-backed target has no generic factory-default source, so
+		// the CDO is unreliable. Refuse and let the caller fall back to the
+		// authored DefaultValue instead of silently adopting the saved value.
+		UE_LOG(LogGameSettings, Warning,
+			TEXT("FGameSettingsBinding: target '%s' is a config class; its CDO reflects saved ini values, not factory defaults. "
+				 "Set bUseClassDefaultValue=false and an explicit DefaultValue on the contribution."),
+			*Loaded->GetName());
+		return false;
+	}
+
+	// Non-config CDO carries the C++-declared member initializers.
+	// Running the getter against it gives the value a Reset-To-Default should restore.
 	UObject* CDO = Loaded->GetDefaultObject();
 	if (!CDO)
 	{
