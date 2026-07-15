@@ -159,11 +159,15 @@ void UGameSettingValueKeyBinding::ResetToDefault()
 	{
 		FMapPlayerKeyArgs Args = {};
 		Args.MappingName = ActionMappingName;
+		Args.ProfileIdString = ProfileIdentifier;
 
 		FGameplayTagContainer FailureReason;
 		Settings->ResetAllPlayerKeysInRow(Args, FailureReason);
 
-		NotifySettingChanged(EGameSettingChangeReason::ResetToDefault);
+		if (FailureReason.IsEmpty())
+		{
+			NotifySettingChanged(EGameSettingChangeReason::ResetToDefault);
+		}
 	}
 }
 
@@ -207,11 +211,16 @@ bool UGameSettingValueKeyBinding::ChangeBinding(int32 InKeyBindSlot, FKey NewKey
 	Args.MappingName = ActionMappingName;
 	Args.Slot = (EPlayerMappableKeySlot)(static_cast<uint8>(InKeyBindSlot));
 	Args.NewKey = NewKey;
+	Args.ProfileIdString = ProfileIdentifier;
 
 	FGameplayTagContainer FailureReason;
 	Settings->MapPlayerKey(Args, FailureReason);
-	NotifySettingChanged(EGameSettingChangeReason::Change);
+	if (!FailureReason.IsEmpty())
+	{
+		return false;
+	}
 
+	NotifySettingChanged(EGameSettingChangeReason::Change);
 	return true;
 }
 
