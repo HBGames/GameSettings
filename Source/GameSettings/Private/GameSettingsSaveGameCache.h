@@ -82,7 +82,7 @@ namespace UE::GameSettings::Private
 			// By reference: the collector may null or remap the pointer, and
 			// a by-value pair would discard that fixup, leaving the map with
 			// a dangling entry that FindOrLoad then hands back out.
-			for (TPair<FSaveGameCacheKey, ULocalPlayerSaveGame*>& Pair : Entries)
+			for (TPair<FSaveGameCacheKey, TObjectPtr<ULocalPlayerSaveGame>>& Pair : Entries)
 			{
 				Collector.AddReferencedObject(Pair.Value);
 			}
@@ -98,6 +98,6 @@ namespace UE::GameSettings::Private
 	private:
 		FSaveGameCache() = default;
 
-		TMap<FSaveGameCacheKey, ULocalPlayerSaveGame*> Entries;
+		TMap<FSaveGameCacheKey, TObjectPtr<ULocalPlayerSaveGame>> Entries;
 	};
 }
