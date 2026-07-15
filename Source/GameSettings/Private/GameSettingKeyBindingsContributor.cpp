@@ -9,6 +9,8 @@
 #include "GameSettingRegistry.h"
 #include "GameSettingValueKeyBinding.h"
 #include "GameSettingsLog.h"
+#include "Internationalization/Text.h"
+#include "Misc/Crc.h"
 #include "UserSettings/EnhancedInputUserSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameSettingKeyBindingsContributor)
@@ -20,7 +22,7 @@ namespace UE::GameSettings::KeyBindings
 	static const FPrimaryAssetType CollectionType = FPrimaryAssetType(TEXT("GameSettingCollection"));
 	static const FPrimaryAssetType BindingType = FPrimaryAssetType(TEXT("GameSettingKeyBinding"));
 
-	/** Reduce a display string to a stable, id-safe token. */
+	/** Reduce a source string to an id-safe token while retaining collision resistance. */
 	static FName MakeIdName(const TCHAR* Prefix, const FString& Source)
 	{
 		FString Clean;
@@ -29,7 +31,20 @@ namespace UE::GameSettings::KeyBindings
 		{
 			Clean.AppendChar(FChar::IsAlnum(Ch) ? Ch : TEXT('_'));
 		}
-		return FName(*(FString(Prefix) + Clean));
+		return FName(*FString::Printf(TEXT("%s%s_%08X"), Prefix, *Clean, FCrc::StrCrc32(*Source)));
+	}
+
+	/** Prefer localization identity so category ids do not change with culture. */
+	static FString GetStableTextIdSource(const FText& Text)
+	{
+		const TOptional<FString> Namespace = FTextInspector::GetNamespace(Text);
+		const TOptional<FString> Key = FTextInspector::GetKey(Text);
+		if (Key.IsSet())
+		{
+			return Namespace.Get(FString()) + TEXT(":") + Key.GetValue();
+		}
+
+		return Text.ToString();
 	}
 }
 
@@ -72,7 +87,7 @@ void UGameSettingKeyBindingsContributor::Apply(UGameSettingRegistry& Registry, T
 		}
 
 		UGameSettingCollection* Category = NewObject<UGameSettingCollection>(&Registry);
-		Category->SetSettingId(FPrimaryAssetId(CollectionType, MakeIdName(TEXT("KeyBindings_Cat_"), CategoryString)));
+		Category->SetSettingId(FPrimaryAssetId(CollectionType, MakeIdName(TEXT("KeyBindings_Cat_"), GetStableTextIdSource(DisplayCategory))));
 		Category->SetDisplayName(DisplayCategory);
 		Root->AddSetting(Category);
 		CategoryToCollection.Add(CategoryString, Category);
