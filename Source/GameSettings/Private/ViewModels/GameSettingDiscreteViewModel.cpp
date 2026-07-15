@@ -55,6 +55,12 @@ void UGameSettingDiscreteViewModel::SetSelectedIndex(int32 NewIndex)
 	{
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(IsAtDefault);
 	}
+
+	// SelectedOptionText is one-way (no destination-side feedback), so always
+	// reconcile it. When the setting accepts the write as-is, SelectedIndex's
+	// broadcast is suppressed above, so this is what refreshes a value label
+	// bound to the current option (mirrors the scalar VM broadcasting FormattedText).
+	RefreshSelectedOptionText();
 }
 
 void UGameSettingDiscreteViewModel::SelectNextOption()
@@ -117,11 +123,23 @@ void UGameSettingDiscreteViewModel::RefreshFromSetting()
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(SelectedIndex);
 	}
 
+	RefreshSelectedOptionText();
+
 	// Broadcast IsAtDefault whenever its computed value actually flipped,
 	// whichever input moved it.
 	const bool bIsAtDefaultNow = (SelectedIndex == DefaultIndex);
 	if (bWasAtDefault != bIsAtDefaultNow)
 	{
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(IsAtDefault);
+	}
+}
+
+void UGameSettingDiscreteViewModel::RefreshSelectedOptionText()
+{
+	const FText NewOptionText = Options.IsValidIndex(SelectedIndex) ? Options[SelectedIndex] : FText::GetEmpty();
+	if (!SelectedOptionText.EqualTo(NewOptionText))
+	{
+		SelectedOptionText = NewOptionText;
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSelectedOptionText);
 	}
 }
