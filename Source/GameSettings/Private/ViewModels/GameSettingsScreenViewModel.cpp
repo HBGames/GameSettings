@@ -8,6 +8,7 @@
 #include "GameSettingRegistry.h"
 #include "GameSettingValue.h"
 #include "GameSettingValueDiscrete.h"
+#include "GameSettingValueKeyBinding.h"
 #include "GameSettingValueScalar.h"
 #include "GameSettingsSubsystem.h"
 #include "GameSettingValueBool.h"
@@ -15,6 +16,7 @@
 #include "ViewModels/GameSettingActionViewModel.h"
 #include "ViewModels/GameSettingCollectionViewModel.h"
 #include "ViewModels/GameSettingDiscreteViewModel.h"
+#include "ViewModels/GameSettingKeyBindingViewModel.h"
 #include "ViewModels/GameSettingScalarViewModel.h"
 #include "ViewModels/GameSettingToggleViewModel.h"
 #include "ViewModels/GameSettingViewModel.h"
@@ -403,6 +405,7 @@ TSubclassOf<UGameSettingViewModel> UGameSettingsScreenViewModel::ResolveViewMode
 	// here is a reminder that toggles get their own VM rather than falling
 	// through to the option-list VM).
 	if (Cast<UGameSettingValueBool>(Setting)) return UGameSettingToggleViewModel::StaticClass();
+	if (Cast<UGameSettingValueKeyBinding>(Setting)) return UGameSettingKeyBindingViewModel::StaticClass();
 	if (Cast<UGameSettingValueScalar>(Setting)) return UGameSettingScalarViewModel::StaticClass();
 	if (Cast<UGameSettingValueDiscrete>(Setting)) return UGameSettingDiscreteViewModel::StaticClass();
 	if (Cast<UGameSettingAction>(Setting)) return UGameSettingActionViewModel::StaticClass();

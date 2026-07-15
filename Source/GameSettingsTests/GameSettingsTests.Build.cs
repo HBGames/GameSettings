@@ -18,6 +18,10 @@ public class GameSettingsTests : ModuleRules
 				// public surface; depend on it directly rather than leaning on
 				// GameSettings' transitive export.
 				"GameplayTags",
+				// EKeys / FKey are used directly by the key binding tests. Same
+				// reasoning as GameplayTags: link InputCore directly rather than
+				// leaning on GameSettings' transitive export.
+				"InputCore",
 				// The modules under test.
 				"GameSettings",
 				"GameSettingsGameFeatures",
