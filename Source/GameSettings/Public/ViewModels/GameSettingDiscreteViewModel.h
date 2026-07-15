@@ -50,12 +50,9 @@ public:
 	int32 GetDefaultIndex() const { return DefaultIndex; }
 
 	/**
-	 * Display text of the currently selected option. One-way readable, the
-	 * discrete counterpart to the scalar VM's FormattedText. Bind a value label
-	 * here so it refreshes when the selection changes: SelectedIndex's own
-	 * broadcast is intentionally suppressed on accepted writes to keep the
-	 * two-way binding from looping, so a label derived from SelectedIndex alone
-	 * would go stale.
+	 * Display text of the currently selected option. A one-way convenience so a
+	 * value label can bind straight to the selected text instead of deriving it
+	 * from Options[SelectedIndex]. Kept in sync in RefreshFromSetting.
 	 */
 	UFUNCTION(BlueprintCallable, FieldNotify, Category = "Value")
 	const FText& GetSelectedOptionText() const { return SelectedOptionText; }
@@ -67,9 +64,6 @@ protected:
 	UE_API virtual void RefreshFromSetting() override;
 
 private:
-	/** Recompute SelectedOptionText from the current options and selection, broadcasting only on change. */
-	void RefreshSelectedOptionText();
-
 	/**
 	 * Two-way bindable. Getter / Setter (C++ accessors) auto-detect GetSelectedIndex / SetSelectedIndex
 	 * by naming convention - that's what MVVM's binding compiler looks at when building the FieldNotify
@@ -86,7 +80,7 @@ private:
 	UPROPERTY(BlueprintReadOnly, Getter, FieldNotify, BlueprintGetter=GetDefaultIndex, Category="Value", meta=(AllowPrivateAccess=true))
 	int32 DefaultIndex = INDEX_NONE;
 
-	/** Cached display text for the selected option. Kept in sync in RefreshFromSetting and SetSelectedIndex. */
+	/** Cached display text for the selected option, mirrored from Options[SelectedIndex] in RefreshFromSetting. */
 	FText SelectedOptionText;
 };
 

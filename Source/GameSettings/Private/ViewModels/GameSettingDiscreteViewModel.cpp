@@ -30,37 +30,26 @@ void UGameSettingDiscreteViewModel::SetSelectedIndex(int32 NewIndex)
 		return;
 	}
 
-	const bool bWasAtDefault = (SelectedIndex == DefaultIndex);
-
-	// Update the cached value BEFORE calling into the setting: the setting
-	// fires OnSettingChangedEvent synchronously, so RefreshFromSetting runs
-	// inside this call. With the cache pre-set its "have I changed?" gate
-	// stays closed and the two-way binding doesn't loop back into here
-	// (same discipline as the scalar VM's SetNormalizedValue).
-	SelectedIndex = NewIndex;
+	// Push the write and let RefreshFromSetting broadcast the result.
+	// SetDiscreteOptionByIndex fires OnSettingChangedEvent synchronously, so
+	// RefreshFromSetting runs during this call, sees SelectedIndex move from its
+	// old value to the applied one, and broadcasts it (plus IsAtDefault). That
+	// broadcast is what a one-way consumer such as a CommonRotator bound to
+	// SelectedIndex needs to update its shown item.
+	//
+	// We deliberately do NOT pre-set SelectedIndex first. Pre-setting closed
+	// RefreshFromSetting's changed-gate and swallowed the broadcast on accepted
+	// writes, leaving the rotator stuck on the old option. The early-out at the
+	// top of this function stops a two-way binding from looping, and integer
+	// indices round-trip exactly, so unlike the scalar slider there is no float
+	// ping-pong to defend against.
 	Discrete->SetDiscreteOptionByIndex(NewIndex);
 
-	// Reconcile in case the setting refused or remapped the write. Broadcast
-	// only when the applied value differs from what the widget set -
-	// re-broadcasting the same value would loop the two-way binding.
-	const int32 Applied = Discrete->GetDiscreteOptionIndex();
-	if (SelectedIndex != Applied)
+	// Safety net: if the setting did not update synchronously, sync now.
+	if (SelectedIndex != Discrete->GetDiscreteOptionIndex())
 	{
-		SelectedIndex = Applied;
-		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(SelectedIndex);
+		RefreshFromSetting();
 	}
-
-	const bool bIsAtDefaultNow = (SelectedIndex == DefaultIndex);
-	if (bWasAtDefault != bIsAtDefaultNow)
-	{
-		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(IsAtDefault);
-	}
-
-	// SelectedOptionText is one-way (no destination-side feedback), so always
-	// reconcile it. When the setting accepts the write as-is, SelectedIndex's
-	// broadcast is suppressed above, so this is what refreshes a value label
-	// bound to the current option (mirrors the scalar VM broadcasting FormattedText).
-	RefreshSelectedOptionText();
 }
 
 void UGameSettingDiscreteViewModel::SelectNextOption()
@@ -123,7 +112,14 @@ void UGameSettingDiscreteViewModel::RefreshFromSetting()
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(SelectedIndex);
 	}
 
-	RefreshSelectedOptionText();
+	// Convenience mirror of the selected option's text, for labels that bind
+	// straight to it rather than deriving from Options[SelectedIndex].
+	const FText NewOptionText = Options.IsValidIndex(SelectedIndex) ? Options[SelectedIndex] : FText::GetEmpty();
+	if (!SelectedOptionText.EqualTo(NewOptionText))
+	{
+		SelectedOptionText = NewOptionText;
+		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSelectedOptionText);
+	}
 
 	// Broadcast IsAtDefault whenever its computed value actually flipped,
 	// whichever input moved it.
@@ -131,15 +127,5 @@ void UGameSettingDiscreteViewModel::RefreshFromSetting()
 	if (bWasAtDefault != bIsAtDefaultNow)
 	{
 		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(IsAtDefault);
-	}
-}
-
-void UGameSettingDiscreteViewModel::RefreshSelectedOptionText()
-{
-	const FText NewOptionText = Options.IsValidIndex(SelectedIndex) ? Options[SelectedIndex] : FText::GetEmpty();
-	if (!SelectedOptionText.EqualTo(NewOptionText))
-	{
-		SelectedOptionText = NewOptionText;
-		UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(GetSelectedOptionText);
 	}
 }
