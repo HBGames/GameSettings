@@ -88,6 +88,10 @@ sets each entry's VM into a slot literally named `Setting`:
   `Setting.SelectNextOption` / `Setting.SelectPreviousOption`.
 - Action entry: viewmodel `UGameSettingActionViewModel`. Bind a button's
   Text to `Setting.ActionText`, OnClicked to `Setting.Execute`.
+- Key binding entry: viewmodel `UGameSettingKeyBindingViewModel`. Bind two
+  bind-button labels to `Setting.PrimaryKeyText` and `Setting.SecondaryKeyText`
+  (one-way). Optionally bind a "modified" marker or a reset button's visibility
+  to `Setting.IsCustomized`. The rebind itself is a short BP flow, below.
 
 > Toggle and Discrete are separate VMs now. A bool toggle gets
 > `UGameSettingToggleViewModel` (IsChecked); an option list gets
@@ -99,6 +103,40 @@ Every entry should also bind:
 - A DisplayName label to `Setting.DisplayName`.
 - IsEnabled (visual) to `Setting.IsEnabled`.
 - Visibility to a conversion of `Setting.IsVisible`.
+
+### The key binding row
+
+Rebinding needs a capture modal, so the key binding row is the one entry with a
+little BP graph on top of its bindings. In the key binding entry widget:
+
+1. On a bind button's OnClicked, push a press-any-key modal onto your menu's
+   CommonUI layer:
+   `UCommonUIExtensions::PushContentToLayer_ForPlayer(GetOwningLocalPlayer(),
+   <your menu layer tag>, WBP_PressAnyKey)`, where `WBP_PressAnyKey` is a BP
+   deriving from `UGameSettingPressAnyKey`. Cast the returned widget to it.
+2. Bind that modal's `OnKeySelected(FKey)`. In the handler, remember which slot
+   this button is (0 = primary, 1 = secondary) and:
+   - Call `Setting.GetActionsBoundToKey(Slot, Key)`.
+   - Empty result: commit with `Setting.ChangeBinding(Slot, Key)`.
+   - Non-empty: the key is already used. Push a `WBP_KeyAlreadyBoundWarning` (BP
+     deriving from `UKeyAlreadyBoundWarning`), call `SetWarningText` /
+     `SetCancelText`, then bind ITS `OnKeySelected` too: the same key again
+     confirms with `ChangeBinding`, any other key cancels.
+3. Bind the modal's `OnKeySelectionCanceled` to just close out (no write).
+4. A reset button calls `Setting.ResetBindingToDefault`.
+
+You don't refresh the labels by hand: `ChangeBinding` fires the setting's change
+event, the VM re-reads, and `PrimaryKeyText` / `SecondaryKeyText` broadcast. For
+a row that shows more than two slots, read `Setting.GetKeyTextForSlot(n)`.
+
+`UGameSettingPressAnyKey` and `UKeyAlreadyBoundWarning` ship as C++ bases; you
+author the two modal BPs and the row BP. Their completion events are
+BlueprintAssignable, so none of this needs C++.
+
+The rows themselves are generated for you: `UGameSettingKeyBindingsContributor`
+enumerates the player's mappable keys into a "Key Bindings" tab, so once the row
+widget and its bindings-asset entry exist they show up automatically (as long as
+your input actions are registered as player-mappable keys).
 
 ### Navigating into a sub-page
 
@@ -149,6 +187,7 @@ EntryWidgetForViewModel:
   UGameSettingScalarViewModel   -> WBP_SettingsEntry_Slider
   UGameSettingDiscreteViewModel -> WBP_SettingsEntry_Dropdown
   UGameSettingActionViewModel   -> WBP_SettingsEntry_Button
+  UGameSettingKeyBindingViewModel -> WBP_SettingsEntry_KeyBinding
   UGameSettingViewModel         -> WBP_SettingsEntry_Generic    (catch-all)
 
 DetailExtensions:

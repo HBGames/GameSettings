@@ -4,12 +4,17 @@
 #pragma once
 
 #include "CommonActivatableWidget.h"
+#include "InputCoreTypes.h"
 
 #include "GameSettingPressAnyKey.generated.h"
 
 #define UE_API GAMESETTINGS_API
 
-struct FKey;
+/** Fires with the captured key once the press-any-key modal resolves. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGameSettingKeySelected, FKey, SelectedKey);
+
+/** Fires when the capture is cancelled. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGameSettingKeySelectionCanceled);
 
 /**
  * Modal that captures the next key press and reports it. Used by a key binding
@@ -28,11 +33,13 @@ class UGameSettingPressAnyKey : public UCommonActivatableWidget
 public:
 	UE_API UGameSettingPressAnyKey(const FObjectInitializer& Initializer);
 
-	DECLARE_EVENT_OneParam(UGameSettingPressAnyKey, FOnKeySelected, FKey);
-	FOnKeySelected OnKeySelected;
+	/** Fires with the captured key once the modal resolves. Bind this in the bind-row widget BP. */
+	UPROPERTY(BlueprintAssignable, Category = "Key Binding")
+	FGameSettingKeySelected OnKeySelected;
 
-	DECLARE_EVENT(UGameSettingPressAnyKey, FOnKeySelectionCanceled);
-	FOnKeySelectionCanceled OnKeySelectionCanceled;
+	/** Fires when capture is cancelled (Escape, touch, or a gamepad key when bCancelOnGamepadKey). */
+	UPROPERTY(BlueprintAssignable, Category = "Key Binding")
+	FGameSettingKeySelectionCanceled OnKeySelectionCanceled;
 
 protected:
 	UE_API virtual void NativeOnActivated() override;
