@@ -6,11 +6,14 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "GameSettingCollection.h"
+#include "GameSettingKeyBindingMetadata.h"
 #include "GameSettingRegistry.h"
 #include "GameSettingValueKeyBinding.h"
 #include "GameSettingsLog.h"
+#include "InputAction.h"
 #include "Internationalization/Text.h"
 #include "Misc/Crc.h"
+#include "PlayerMappableKeySettings.h"
 #include "UserSettings/EnhancedInputUserSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameSettingKeyBindingsContributor)
@@ -22,7 +25,22 @@ namespace UE::GameSettings::KeyBindings
 	static const FPrimaryAssetType CollectionType = FPrimaryAssetType(TEXT("GameSettingCollection"));
 	static const FPrimaryAssetType BindingType = FPrimaryAssetType(TEXT("GameSettingKeyBinding"));
 
-	/** Reduce a source string to an id-safe token while retaining collision resistance. */
+	/** A built row plus its sort keys. */
+	struct FPendingRow
+	{
+		UGameSettingValueKeyBinding* Binding = nullptr;
+		FText DisplayName;
+		int32 SortOrder = 0;
+	};
+
+	/** Rows in one display category. */
+	struct FPendingCategory
+	{
+		FText DisplayText;
+		TArray<FPendingRow> Rows;
+	};
+
+	/** Stable id token for a source string. */
 	static FName MakeIdName(const TCHAR* Prefix, const FString& Source)
 	{
 		FString Clean;
@@ -34,7 +52,7 @@ namespace UE::GameSettings::KeyBindings
 		return FName(*FString::Printf(TEXT("%s%s_%08X"), Prefix, *Clean, FCrc::StrCrc32(*Source)));
 	}
 
-	/** Prefer localization identity so category ids do not change with culture. */
+	/** Loc key so category ids stay stable across cultures. */
 	static FString GetStableTextIdSource(const FText& Text)
 	{
 		const TOptional<FString> Namespace = FTextInspector::GetNamespace(Text);
@@ -45,6 +63,26 @@ namespace UE::GameSettings::KeyBindings
 		}
 
 		return Text.ToString();
+	}
+
+	/** SortOrder from the action's mappable key metadata, or 0. */
+	static int32 ReadSortOrder(const FKeyMappingRow& Row)
+	{
+		if (Row.Mappings.IsEmpty())
+		{
+			return 0;
+		}
+		if (const UInputAction* Action = Row.Mappings.begin()->GetAssociatedInputAction())
+		{
+			if (const UPlayerMappableKeySettings* Settings = Action->GetPlayerMappableKeySettings())
+			{
+				if (const UGameSettingKeyBindingMetadata* Meta = Cast<UGameSettingKeyBindingMetadata>(Settings->Metadata))
+				{
+					return Meta->SortOrder;
+				}
+			}
+		}
+		return 0;
 	}
 }
 
@@ -65,39 +103,10 @@ void UGameSettingKeyBindingsContributor::Apply(UGameSettingRegistry& Registry, T
 		return;
 	}
 
-	// The tab that holds every category of bindings. Registered last, and only
-	// if it ended up with at least one row, so an empty profile leaves no tab.
-	UGameSettingCollection* Root = NewObject<UGameSettingCollection>(&Registry);
-	Root->SetSettingId(FPrimaryAssetId(CollectionType, FName(TEXT("KeyBindingsCollection"))));
-	Root->SetDisplayName(LOCTEXT("KeyBindingsCollection_Name", "Key Bindings"));
-
-	TMap<FString, UGameSettingCollection*> CategoryToCollection;
-
-	auto GetOrCreateCategory = [&CategoryToCollection, &Registry, Root](FText DisplayCategory) -> UGameSettingCollection*
-	{
-		if (DisplayCategory.IsEmpty())
-		{
-			DisplayCategory = LOCTEXT("KeyBindings_DefaultCategory", "General");
-		}
-
-		const FString CategoryString = DisplayCategory.ToString();
-		if (UGameSettingCollection** Existing = CategoryToCollection.Find(CategoryString))
-		{
-			return *Existing;
-		}
-
-		UGameSettingCollection* Category = NewObject<UGameSettingCollection>(&Registry);
-		Category->SetSettingId(FPrimaryAssetId(CollectionType, MakeIdName(TEXT("KeyBindings_Cat_"), GetStableTextIdSource(DisplayCategory))));
-		Category->SetDisplayName(DisplayCategory);
-		Root->AddSetting(Category);
-		CategoryToCollection.Add(CategoryString, Category);
-		return Category;
-	};
-
-	// Dedup by mapping name so an action that appears in more than one profile
-	// gets a single row. The row itself carries every slot for that action.
+	// Build a row per action, grouped by category. Ordering waits for the full set.
+	TMap<FString, FPendingCategory> CategoriesByKey;
 	TSet<FName> CreatedMappingNames;
-	int32 BindingCount = 0;
+	int32 RowCount = 0;
 
 	for (const TPair<FString, TObjectPtr<UEnhancedPlayerMappableKeyProfile>>& ProfilePair : UserSettings->GetAllAvailableKeyProfiles())
 	{
@@ -109,17 +118,14 @@ void UGameSettingKeyBindingsContributor::Apply(UGameSettingRegistry& Registry, T
 
 		for (const TPair<FName, FKeyMappingRow>& RowPair : Profile->GetPlayerMappingRows())
 		{
+			// One row per mapping name, even across profiles.
 			if (!RowPair.Value.HasAnyMappings() || CreatedMappingNames.Contains(RowPair.Key))
 			{
 				continue;
 			}
 
-			// Permissive options match every device, so a keyboard, mouse,
-			// gamepad, or VR mapping all pass and land on the same row.
+			// Default options match every device.
 			FPlayerMappableKeyQueryOptions Options;
-
-			const FText DesiredCategory = RowPair.Value.Mappings.begin()->GetDisplayCategory();
-			UGameSettingCollection* Category = GetOrCreateCategory(DesiredCategory);
 
 			UGameSettingValueKeyBinding* Binding = NewObject<UGameSettingValueKeyBinding>(&Registry);
 			Binding->SetSettingId(FPrimaryAssetId(BindingType, MakeIdName(TEXT("KeyBind_"), RowPair.Key.ToString())));
@@ -129,25 +135,104 @@ void UGameSettingKeyBindingsContributor::Apply(UGameSettingRegistry& Registry, T
 				Binding->SetDisplayName(FText::FromName(RowPair.Key));
 			}
 
-			Category->AddSetting(Binding);
+			FText CategoryText = RowPair.Value.Mappings.begin()->GetDisplayCategory();
+			if (CategoryText.IsEmpty())
+			{
+				CategoryText = LOCTEXT("KeyBindings_DefaultCategory", "General");
+			}
+
+			FPendingCategory& Category = CategoriesByKey.FindOrAdd(CategoryText.ToString());
+			Category.DisplayText = CategoryText;
+			Category.Rows.Add({ Binding, Binding->GetDisplayName(), ReadSortOrder(RowPair.Value) });
+
 			CreatedMappingNames.Add(RowPair.Key);
-			++BindingCount;
+			++RowCount;
 		}
 	}
 
-	if (BindingCount == 0)
+	if (CategoriesByKey.IsEmpty())
 	{
-		// Nothing to bind on this player. Leave the unregistered objects for GC.
+		// Nothing to bind. The unregistered objects fall to GC.
 		return;
 	}
 
-	const FGameSettingHandle Handle = Registry.AddCollection(Root, ParentContainer);
-	if (Handle.IsValid())
+	// Order categories and rows, then bake it into SortPriority so the registry
+	// reproduces it. Order is fixed to the current culture and refreshes on Regenerate.
+	TArray<FPendingCategory*> SortedCategories;
+	SortedCategories.Reserve(CategoriesByKey.Num());
+	for (TPair<FString, FPendingCategory>& Pair : CategoriesByKey)
 	{
-		OutHandles.Add(Handle);
-		UE_LOG(LogGameSettings, Verbose, TEXT("Key bindings contributor added %d binding(s) for %s"),
-			BindingCount, *LocalPlayer->GetName());
+		SortedCategories.Add(&Pair.Value);
 	}
+	// Sort dereferences the pointers before calling the predicate.
+	SortedCategories.Sort([](const FPendingCategory& A, const FPendingCategory& B)
+	{
+		return A.DisplayText.CompareTo(B.DisplayText) < 0;
+	});
+
+	TArray<UGameSettingCollection*> Categories;
+	Categories.Reserve(SortedCategories.Num());
+	int32 CategoryPriority = 0;
+	for (FPendingCategory* Pending : SortedCategories)
+	{
+		UGameSettingCollection* Category = NewObject<UGameSettingCollection>(&Registry);
+		Category->SetSettingId(FPrimaryAssetId(CollectionType, MakeIdName(TEXT("KeyBindings_Cat_"), GetStableTextIdSource(Pending->DisplayText))));
+		Category->SetDisplayName(Pending->DisplayText);
+		Category->SetSortPriority(CategoryPriority);
+		CategoryPriority += 10;
+
+		Pending->Rows.StableSort([](const FPendingRow& A, const FPendingRow& B)
+		{
+			if (A.SortOrder != B.SortOrder)
+			{
+				return A.SortOrder < B.SortOrder;
+			}
+			return A.DisplayName.CompareTo(B.DisplayName) < 0;
+		});
+
+		int32 RowPriority = 0;
+		for (const FPendingRow& Row : Pending->Rows)
+		{
+			Row.Binding->SetSortPriority(RowPriority);
+			RowPriority += 10;
+			Category->AddSetting(Row.Binding);
+		}
+
+		Categories.Add(Category);
+	}
+
+	// With a parent, nest the categories under it. Otherwise build the fallback tab.
+	if (ParentContainer.IsValid())
+	{
+		for (UGameSettingCollection* Category : Categories)
+		{
+			const FGameSettingHandle Handle = Registry.AddCollection(Category, ParentContainer);
+			if (Handle.IsValid())
+			{
+				OutHandles.Add(Handle);
+			}
+		}
+	}
+	else
+	{
+		UGameSettingCollection* Root = NewObject<UGameSettingCollection>(&Registry);
+		Root->SetSettingId(FPrimaryAssetId(CollectionType, FName(TEXT("KeyBindingsCollection"))));
+		Root->SetDisplayName(LOCTEXT("KeyBindingsCollection_Name", "Key Bindings"));
+		Root->SetSortPriority(FallbackTabSortPriority);
+		for (UGameSettingCollection* Category : Categories)
+		{
+			Root->AddSetting(Category);
+		}
+
+		const FGameSettingHandle Handle = Registry.AddCollection(Root, FPrimaryAssetId());
+		if (Handle.IsValid())
+		{
+			OutHandles.Add(Handle);
+		}
+	}
+
+	UE_LOG(LogGameSettings, Verbose, TEXT("Key bindings contributor added %d row(s) in %d categories for %s"),
+		RowCount, Categories.Num(), *LocalPlayer->GetName());
 }
 
 #undef LOCTEXT_NAMESPACE

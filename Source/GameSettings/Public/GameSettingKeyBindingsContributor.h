@@ -10,22 +10,16 @@
 #define UE_API GAMESETTINGS_API
 
 /**
- * Builds the input rebinding settings from the local player's Enhanced Input
- * user settings.
+ * Emits one UGameSettingValueKeyBinding per player mappable key, grouped by
+ * display category. Runs as code because the available keys depend on which
+ * input mapping contexts are active, so they cannot be a static asset. Covers
+ * every device, so keyboard, mouse, gamepad, and VR all appear.
  *
- * Key bindings cannot be authored as a static data asset. The set of mappable
- * keys depends on which input mapping contexts are registered, which depends on
- * which game features are active. So this runs as a code auto-contributor: on
- * every local player it reads the current mappable key profiles and emits one
- * UGameSettingValueKeyBinding per action, grouped by display category, under a
- * Key Bindings collection.
+ * Categories sort by display name. Rows sort by SortOrder then display name.
+ * See UGameSettingKeyBindingMetadata to pin a row.
  *
- * Device-agnostic. It enumerates every mapping with permissive query options,
- * so keyboard, mouse, gamepad, and VR controller bindings all appear.
- *
- * The list is a snapshot taken when the registry is built. A game feature that
- * registers new keys after that shows up on the next UGameSettingRegistry::Regenerate
- * (a settings screen reopen is the usual trigger).
+ * The list is a snapshot from when the registry was built. New keys appear on
+ * the next Regenerate, usually a settings reopen.
  */
 UCLASS(MinimalAPI, BlueprintType, Config = Game, DefaultConfig)
 class UGameSettingKeyBindingsContributor : public UGameSettingsAutoContributor
@@ -37,13 +31,16 @@ public:
 	//~End of UGameSettingsContribution interface
 
 	/**
-	 * Where the Key Bindings collection lands. Invalid (default) makes it a top
-	 * level tab. Set it to an existing tab or section id to nest the bindings
-	 * under that container instead. Config-driven so a project can re-home it
-	 * without a code change.
+	 * Container the rows nest under. Invalid falls back to a native "Key Bindings"
+	 * tab. Point it at an authored Tab or Section id to control the name, sort
+	 * priority, icon, and gating like any other tab.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category = "Key Bindings")
 	FPrimaryAssetId ParentContainer;
+
+	/** Sort priority of the fallback tab. Lower sorts first. Unused when ParentContainer is set. */
+	UPROPERTY(Config, EditAnywhere, Category = "Key Bindings")
+	int32 FallbackTabSortPriority = 0;
 };
 
 #undef UE_API
