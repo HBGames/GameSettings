@@ -6,7 +6,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "GameSettingCollection.h"
-#include "GameSettingKeyBindingMetadata.h"
+#include "GameSettingKeyBindingSettings.h"
 #include "GameSettingRegistry.h"
 #include "GameSettingValueKeyBinding.h"
 #include "GameSettingsLog.h"
@@ -65,7 +65,7 @@ namespace UE::GameSettings::KeyBindings
 		return Text.ToString();
 	}
 
-	/** SortOrder from the action's mappable key metadata, or 0. */
+	/** SortOrder from the action's mappable key settings, or 0. */
 	static int32 ReadSortOrder(const FKeyMappingRow& Row)
 	{
 		if (Row.Mappings.IsEmpty())
@@ -74,12 +74,9 @@ namespace UE::GameSettings::KeyBindings
 		}
 		if (const UInputAction* Action = Row.Mappings.begin()->GetAssociatedInputAction())
 		{
-			if (const UPlayerMappableKeySettings* Settings = Action->GetPlayerMappableKeySettings())
+			if (const UGameSettingKeyBindingSettings* Settings = Cast<UGameSettingKeyBindingSettings>(Action->GetPlayerMappableKeySettings()))
 			{
-				if (const UGameSettingKeyBindingMetadata* Meta = Cast<UGameSettingKeyBindingMetadata>(Settings->Metadata))
-				{
-					return Meta->SortOrder;
-				}
+				return Settings->SortOrder;
 			}
 		}
 		return 0;

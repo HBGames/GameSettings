@@ -16,7 +16,7 @@
  * every device, so keyboard, mouse, gamepad, and VR all appear.
  *
  * Categories sort by display name. Rows sort by SortOrder then display name.
- * See UGameSettingKeyBindingMetadata to pin a row.
+ * See UGameSettingKeyBindingSettings to pin a row.
  *
  * The list is a snapshot from when the registry was built. New keys appear on
  * the next Regenerate, usually a settings reopen.
